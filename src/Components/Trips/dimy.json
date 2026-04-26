@@ -1,0 +1,51 @@
+{
+    "_id": "670ced1224f854000a8a55a1",
+    "title": "Assumenda natus aut ",
+    "price": "8673",
+    "nights": "12",
+    "trendingHeading": "Aliquip iure provide",
+    "subTitle": "Alias aperiam ut dol",
+    "days": "16",
+    "location": "Deserunt vitae volup",
+    "pickUp": "Dolorem ut elit nos",
+    "dropOff": "Velit tenetur aute e",
+    "bannerImage": "/uploads/1728900370092.png",
+    "cardImage": "/uploads/1728900370111.png",
+    "categories": [
+        "INFLUENCER TRIPS ,DESTINATON WEDDING"
+    ],
+    "overview": "sdasdf",
+    "itenarryImg": "/uploads/1728900370122.png",
+    "type": "",
+    "numberOfDays": "[{\"selectDays\":0}]",
+    "numberOfSeats": "[{\"batchSeats\":\"10\"}]",
+    "selectDate": "[{\"BatchDate\":\"2024-10-15\"}]",
+    "date": null,
+    "firstBookingPrice": "740",
+    "Inclusion": "asdf",
+    "Exclusion": "adf",
+    "ThingsToCarry": "sdf",
+    "Cancellation": "asdf",
+    "discount": [
+        "RT657U,Mu5789X"
+    ],
+    "gallaryImages": [
+        "/uploads/1728900370144.png",
+        "/uploads/1728900370151.png"
+    ],
+    "reviews": [
+        "Kashmir"
+    ],
+    "ratings": [
+        "2"
+    ],
+    "vendors": [
+        "Sufian"
+    ],
+    "enableBooking": true,
+    "Trending": true,
+    "enableEnquire": false,
+    "addsection": "[{\"section\":1,\"array\":[{\"Title\":\"Bike\",\"TitlePrice\":\"8673\",\"value\":null,\"section\":\"Traverl\"},{\"Title\":\"Solo Bike\",\"TitlePrice\":\"8673\"}]}]",
+    "addDays": "[{\"day\":1,\"title\":\"1 Climbig\",\"Description\":1,\"description\":\"asdfasdf\"},{\"day\":2,\"title\":\"2Day Running\",\"description\":\"asdfasdf\"}]",
+    "__v": 0
+}
