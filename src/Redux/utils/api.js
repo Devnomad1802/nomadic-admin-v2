@@ -1,11 +1,10 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-// export const baseUrl = "http://localhost:5000/api";
-export const baseUrl = "https://api.nomadictownies.com/api";
-//  export const baseUrl = "https://d6870f0ebd2d.ngrok-free.app/api";
+// Dynamic URL selection: Prioritizes Vercel Env Vars, falls back to new Production IP
+export const baseUrl = import.meta.env.VITE_API_URL || "http://168.144.119.114:5000/api";
 
-
-export const baseImage = "https://api.nomadictownies.com/api";
+// For images, we use the root IP so the frontend can append the file paths correctly
+export const baseImage = import.meta.env.VITE_IMAGE_URL || "http://168.144.119.114:5000";
 
 export const api = createApi({
   reducerPath: "apis",
@@ -20,12 +19,10 @@ export const api = createApi({
     "hosts",
     "payout",
   ],
-
   baseQuery: fetchBaseQuery({
     baseUrl,
     prepareHeaders: (headers) => {
       const token = localStorage.getItem("token");
-
       if (token) {
         headers.set("Authorization", token);
       }
