@@ -19,7 +19,12 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  generateMetaDescription,
+  generateSeoTitle,
+  generateSlug,
+} from "../../utils/seoUtils";
 import { Link, useNavigate } from "react-router-dom";
 import {
   useGetAllCategoriesQuery,
@@ -560,6 +565,26 @@ const UpdateTrip = ({ tripData }) => {
     seoSlug: "",
     metaDescription: "",
   });
+
+  // If the trip already has saved SEO fields, treat them as manually edited
+  // so we never overwrite the admin's existing custom values on load.
+  const seoManuallyEdited = useRef(
+    !!(tripData?.seoTitle || tripData?.seoSlug || tripData?.metaDescription)
+  );
+
+  // Auto-generate SEO fields only when the trip has no existing SEO data
+  // and admin hasn't manually edited the fields yet.
+  useEffect(() => {
+    if (seoManuallyEdited.current) return;
+    const { title, location, categories } = formData;
+    if (!title) return;
+    setFormData((prev) => ({
+      ...prev,
+      seoTitle: generateSeoTitle(title),
+      seoSlug: generateSlug(title),
+      metaDescription: generateMetaDescription(title, location, categories),
+    }));
+  }, [formData.title, formData.location, formData.categories]);
 
   console.log("formData.....", formData);
   // Section
@@ -2899,46 +2924,89 @@ const UpdateTrip = ({ tripData }) => {
           {/* SEO Section */}
           <Accordion sx={{ mb: 2, ...accordionStyle }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography
-                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
-              >
-                SEO
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+                >
+                  SEO
+                </Typography>
+                {!seoManuallyEdited.current && formData.seoTitle && (
+                  <Typography
+                    sx={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#fff",
+                      background: "#22c55e",
+                      px: 1,
+                      py: 0.2,
+                      borderRadius: "10px",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    AUTO
+                  </Typography>
+                )}
+              </Box>
             </AccordionSummary>
             <AccordionDetails>
+              {!seoManuallyEdited.current && formData.seoTitle && (
+                <Typography sx={{ fontSize: "13px", color: "#6B7280", mb: 2 }}>
+                  SEO fields are auto-generated from the trip title, location, and category. Edit any field below to override.
+                </Typography>
+              )}
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6} md={6}>
-                  <Typography sx={{ color: "#737373", mb: 1 }}>
-                    SEO Title
-                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                    <Typography sx={{ color: "#737373" }}>SEO Title</Typography>
+                    <Typography sx={{ fontSize: "12px", color: "#9CA3AF" }}>
+                      ({formData.seoTitle?.length || 0}/60 chars)
+                    </Typography>
+                  </Box>
                   <TextField
                     sx={inputStyle}
                     size="small"
                     name="seoTitle"
                     placeholder="Enter SEO title"
                     value={formData.seoTitle || ""}
-                    onChange={(e) => handleChange("seoTitle", e.target.value)}
+                    onChange={(e) => {
+                      seoManuallyEdited.current = true;
+                      handleChange("seoTitle", e.target.value);
+                    }}
                   />
                 </Grid>
 
                 <Grid item xs={12} sm={6} md={6}>
                   <Typography sx={{ color: "#737373", mb: 1 }}>Slug</Typography>
-
                   <TextField
                     sx={inputStyle}
                     size="small"
                     name="seoSlug"
-                    placeholder="Enter slug"
+                    placeholder="Enter slug (e.g. leh-ladakh-bike-trip)"
                     value={formData.seoSlug || ""}
-                    onChange={(e) => handleChange("seoSlug", e.target.value)}
+                    onChange={(e) => {
+                      seoManuallyEdited.current = true;
+                      handleChange("seoSlug", e.target.value);
+                    }}
                   />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Typography sx={{ color: "#737373", mb: 1 }}>
-                    Meta Description
-                  </Typography>
-
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                    <Typography sx={{ color: "#737373" }}>Meta Description</Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "12px",
+                        color:
+                          formData.metaDescription?.length > 160
+                            ? "#EF4444"
+                            : formData.metaDescription?.length >= 140
+                            ? "#22c55e"
+                            : "#9CA3AF",
+                      }}
+                    >
+                      ({formData.metaDescription?.length || 0}/160 chars)
+                    </Typography>
+                  </Box>
                   <TextField
                     sx={{
                       ...inputStyle,
@@ -2950,11 +3018,12 @@ const UpdateTrip = ({ tripData }) => {
                     }}
                     size="small"
                     name="metaDescription"
-                    placeholder="Enter meta description"
+                    placeholder="Enter meta description (140–160 chars)"
                     value={formData.metaDescription || ""}
-                    onChange={(e) =>
-                      handleChange("metaDescription", e.target.value)
-                    }
+                    onChange={(e) => {
+                      seoManuallyEdited.current = true;
+                      handleChange("metaDescription", e.target.value);
+                    }}
                     multiline
                     rows={3}
                   />
