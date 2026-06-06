@@ -21,7 +21,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!isLoading && !error && responseData) {
       const filteredUsers = responseData?.users.filter(
-        (user) => user.role === "user"
+        (user) => user.role !== "Admin"
       );
       setUsersArray(filteredUsers);
     }
