@@ -284,6 +284,26 @@ const BookingTable = () => {
   });
   const [booking, setBooking] = useState({});
 
+  // Compute the remaining (pending) amount for a booking.
+  // Grand total isn't persisted, so we reconstruct it from cardData:
+  //   grand = base(sum of cardSectionData price*qty) + gst - discount
+  //   pending = max(0, grand - amountPaid)
+  const calcPending = (row) => {
+    const cd = row?.cardData || {};
+    const base = Array.isArray(cd.cardSectionData)
+      ? cd.cardSectionData.reduce(
+          (sum, it) =>
+            sum + (Number(it?.TitlePrice) || 0) * (Number(it?.quantity) || 0),
+          0
+        )
+      : 0;
+    const gst = Number(cd.gstTax) || 0;
+    const discount = Number(row?.coupenDiscount) || 0;
+    const paid = Number(row?.total) || 0;
+    const pending = base + gst - discount - paid;
+    return pending > 0 ? pending : 0;
+  };
+
   // SignUpModal
   const [opens, setOpens] = useState(false);
   const toggelModel = () => {
@@ -721,7 +741,7 @@ const BookingTable = () => {
                           fontWeight: "300",
                         }}
                       >
-                        {row?.total.toFixed(0)}
+                        {(Number(row?.total) || 0).toFixed(0)}
                       </Typography>
                     </TableCell>
                     <TableCell
@@ -742,18 +762,7 @@ const BookingTable = () => {
                           fontWeight: "300",
                         }}
                       >
-                        {row?.paymentStatus === "firstPayment" ? (
-                          <>
-                            {(
-                              row?.cardData?.AmountTotal +
-                              row?.cardData?.gstTax -
-                              Number(row?.coupenDiscount) -
-                              row?.total
-                            ).toFixed(0)}
-                          </>
-                        ) : (
-                          0
-                        )}
+                        {calcPending(row).toFixed(0)}
                       </Typography>
                     </TableCell>
                     <TableCell

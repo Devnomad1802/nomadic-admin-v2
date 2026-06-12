@@ -241,10 +241,18 @@ const DashboardTable = () => {
   console.log("bookingArray....", bookingArray);
   useEffect(() => {
     // Map through the responseData.data array and parse cardData and paymentDetail for each object
+    const safeParse = (v) => {
+      if (typeof v !== "string") return v;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return {};
+      }
+    };
     const updatedBookingArray = responseData?.data.map((booking) => ({
       ...booking,
-      cardData: JSON.parse(booking.cardData),
-      paymentDetail: JSON.parse(booking.paymentDetail),
+      cardData: safeParse(booking.cardData),
+      paymentDetail: safeParse(booking.paymentDetail),
     }));
     setBookingArray(updatedBookingArray);
 
@@ -256,6 +264,23 @@ const DashboardTable = () => {
     label: "Male",
   });
   const [booking, setBooking] = useState({});
+
+  // Remaining (pending) amount — grand total reconstructed from cardData
+  const calcPending = (row) => {
+    const cd = row?.cardData || {};
+    const base = Array.isArray(cd.cardSectionData)
+      ? cd.cardSectionData.reduce(
+          (sum, it) =>
+            sum + (Number(it?.TitlePrice) || 0) * (Number(it?.quantity) || 0),
+          0
+        )
+      : 0;
+    const gst = Number(cd.gstTax) || 0;
+    const discount = Number(row?.coupenDiscount) || 0;
+    const paid = Number(row?.total) || 0;
+    const pending = base + gst - discount - paid;
+    return pending > 0 ? pending : 0;
+  };
 
   // SignUpModal
   const [opens, setOpens] = useState(false);
@@ -672,7 +697,7 @@ const DashboardTable = () => {
                         fontWeight: "300",
                       }}
                     >
-                      {row?.total.toFixed(0)}
+                      {(Number(row?.total) || 0).toFixed(0)}
                     </Typography>
                   </TableCell>
                   <TableCell
@@ -693,18 +718,7 @@ const DashboardTable = () => {
                         fontWeight: "300",
                       }}
                     >
-                      {row?.paymentStatus === "firstPayment" ? (
-                        <>
-                          {(
-                            row?.cardData?.AmountTotal +
-                            row?.cardData?.gstTax -
-                            Number(row?.coupenDiscount) -
-                            row?.total
-                          ).toFixed(0)}
-                        </>
-                      ) : (
-                        0
-                      )}
+                      {calcPending(row).toFixed(0)}
                     </Typography>
                   </TableCell>
                   <TableCell
