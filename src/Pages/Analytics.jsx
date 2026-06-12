@@ -39,7 +39,7 @@ const PURPLE = "#8B5CF6";
 const INK = "#1F2937";
 const GRAY = "#6B7280";
 
-const fmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+const fmt = (n) => "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN");
 const fmtShort = (n) => {
   const v = Number(n) || 0;
   if (v >= 100000) return "₹" + (v / 100000).toFixed(1) + "L";
@@ -189,10 +189,10 @@ const Analytics = () => {
       timeSeries: Object.values(dailyAgg).sort((a, b) => (a.date < b.date ? -1 : 1)),
       topTrips: Object.values(tripAgg).sort((a, b) => b.revenue - a.revenue).slice(0, 5),
       funnel: {
-        enquiries: enquiries.length,
         bookings: bookingsCount,
         paid: fullPaid,
-        conversion: enquiries.length ? Math.round((bookingsCount / enquiries.length) * 100) : 0,
+        awaiting: partial,
+        conversion: bookingsCount ? Math.round((fullPaid / bookingsCount) * 100) : 0,
       },
       recent: [...bookings]
         .sort((a, b) => (bookingDate(b) || 0) - (bookingDate(a) || 0))
@@ -217,7 +217,7 @@ const Analytics = () => {
     { name: "Partial", value: stats.split.partial, color: AMBER },
   ];
   const maxTripRev = Math.max(1, ...stats.topTrips.map((t) => t.revenue));
-  const maxFunnel = Math.max(1, stats.funnel.enquiries, stats.funnel.bookings, stats.funnel.paid);
+  const maxFunnel = Math.max(1, stats.funnel.bookings, stats.funnel.paid, stats.funnel.awaiting);
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, background: "#F9FAFB", minHeight: "100vh" }}>
@@ -334,11 +334,11 @@ const Analytics = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <Box sx={{ ...card, height: "100%" }}>
-                <Typography sx={{ fontSize: "16px", fontWeight: 700, color: INK, mb: 2 }}>Enquiry → Booking Funnel</Typography>
+                <Typography sx={{ fontSize: "16px", fontWeight: 700, color: INK, mb: 2 }}>Bookings → Fully Paid</Typography>
                 {[
-                  { label: "Total Enquiries", value: stats.funnel.enquiries, color: "#E5E7EB", text: INK },
-                  { label: "Bookings", value: stats.funnel.bookings, color: "#FBD7CC", text: INK },
-                  { label: "Completed (Paid)", value: stats.funnel.paid, color: RUST, text: "#fff" },
+                  { label: "Total Bookings", value: stats.funnel.bookings, color: "#E5E7EB", text: INK },
+                  { label: "Fully Paid", value: stats.funnel.paid, color: RUST, text: "#fff" },
+                  { label: "Awaiting Payment", value: stats.funnel.awaiting, color: "#FBD7CC", text: INK },
                 ].map((step, i) => (
                   <Box key={i} sx={{ mb: 1.5 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
@@ -351,7 +351,7 @@ const Analytics = () => {
                   </Box>
                 ))}
                 <Box sx={{ textAlign: "center", mt: 2 }}>
-                  <Typography sx={{ fontSize: "12px", color: GRAY }}>Conversion Rate</Typography>
+                  <Typography sx={{ fontSize: "12px", color: GRAY }}>Payment Completion Rate</Typography>
                   <Typography sx={{ fontSize: "26px", fontWeight: 800, color: RUST }}>{stats.funnel.conversion}%</Typography>
                 </Box>
               </Box>
