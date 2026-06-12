@@ -7,3 +7,4 @@ export * from "./categoryApi";
 export * from "./BannerApis";
 export * from "./reviewApi";
 export * from "./hostsApi";
+export * from "./analytics";

@@ -38,6 +38,7 @@ import { logout } from "./Redux/slices/userSlice";
 import Payouts from "./Pages/Payouts";
 import Seo from "./Pages/Seo";
 import Settings from "./Pages/Settings";
+import Analytics from "./Pages/Analytics";
 
 const App = () => {
   const { isLoggedIn } = useSelector((state) => state.users);
@@ -76,6 +77,7 @@ const App = () => {
 
           <Route exact path="/" element={<ResponsiveDrawer />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/trip" element={<TripBookings />} />
             <Route path="/trip/addtrip" element={<AddTrip />} />

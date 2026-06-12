@@ -26,6 +26,10 @@ const array2 = [
     link1: "/",
   },
   {
+    name: "Analytics",
+    link1: "/analytics",
+  },
+  {
     name: "Bookings",
     link1: "/bookings",
   },
