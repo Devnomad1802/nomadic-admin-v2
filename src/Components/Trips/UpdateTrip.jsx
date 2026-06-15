@@ -358,6 +358,7 @@ const UpdateTrip = ({ tripData }) => {
         Exclusion: tripData?.Exclusion || "",
         Inclusion: tripData?.Inclusion || "",
         ThingsToCarry: tripData?.ThingsToCarry || "",
+        highlights: Array.isArray(tripData?.highlights) ? tripData.highlights.join("\n") : (tripData?.highlights || ""),
         bannerImage: tripData?.bannerImage || "",
         categories: parseArrayField(tripData?.categories, []),
         // date: tripData?.selectDate || "",
@@ -547,6 +548,7 @@ const UpdateTrip = ({ tripData }) => {
     Inclusion: "",
     Exclusion: "",
     ThingsToCarry: "",
+    highlights: "",
     Cancellation: "",
     discount: [],
     gallaryImages: [],
@@ -1143,6 +1145,10 @@ const UpdateTrip = ({ tripData }) => {
       formDataToSend.append('Exclusion', formData?.Exclusion || '');
       formDataToSend.append('ThingsToCarry', formData?.ThingsToCarry || '');
       formDataToSend.append('Cancellation', formData?.Cancellation || '');
+      formDataToSend.append(
+        'highlights',
+        JSON.stringify((formData?.highlights || '').split('\n').map((h) => h.trim()).filter(Boolean))
+      );
       formDataToSend.append('enableBooking', formData?.enableBooking);
       formDataToSend.append('enableEnquire', formData?.enableEnquire);
       formDataToSend.append('categories', JSON.stringify(formData?.categories));
@@ -2455,6 +2461,25 @@ const UpdateTrip = ({ tripData }) => {
                     document.querySelector("textarea").style.borderColor =
                       "#E7E7E7";
                   }}
+                />
+              </Box>
+              <Box sx={{ width: { xs: "100%", md: "60%" } }}>
+                <Typography sx={{ color: "#737373", textAlign: "left", mt: 2 }}>
+                  Highlights (one bullet point per line)
+                </Typography>
+                <textarea
+                  style={{
+                    border: "1px solid #E7E7E7",
+                    width: "100%",
+                    outline: "none",
+                    borderColor: "#E7E7E7",
+                    transition: "border-color 0.3s ease",
+                  }}
+                  name="highlights"
+                  value={formData.highlights}
+                  onChange={(e) => handleChange("highlights", e.target.value)}
+                  rows="5"
+                  placeholder={"Crossing 5 high-altitude passes\nVisits to Key & Tabo Monasteries\n12 travellers max — real community"}
                 />
               </Box>
               <Box sx={{ width: { xs: "100%", md: "60%" } }}>
