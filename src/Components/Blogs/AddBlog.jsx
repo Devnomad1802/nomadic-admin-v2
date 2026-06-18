@@ -81,6 +81,8 @@ const AddBlog = () => {
     bannerImage: null,
     title: "",
     author: "",
+    authorRole: "",
+    authorBio: "",
     locaton: "",
     seoTitle: "",
     seoSlug: "",
@@ -112,6 +114,17 @@ const AddBlog = () => {
       prev.map((item) =>
         item.id === id && item.type === "content"
           ? { ...item, content: value }
+          : item
+      )
+    );
+  };
+
+  // Handle caption change for an image section
+  const handleCaptionChange = (id, value) => {
+    setContentItems((prev) =>
+      prev.map((item) =>
+        item.id === id && item.type === "image"
+          ? { ...item, caption: value }
           : item
       )
     );
@@ -169,6 +182,8 @@ const AddBlog = () => {
       // Basic blog information
       formDataToSend.append("title", blog?.title || "");
       formDataToSend.append("author", blog?.author || "");
+      formDataToSend.append("authorRole", blog?.authorRole || "");
+      formDataToSend.append("authorBio", blog?.authorBio || "");
       formDataToSend.append("location", blog?.locaton || "");
       formDataToSend.append("seoTitle", blog?.seoTitle || "");
       formDataToSend.append("seoSlug", blog?.seoSlug || "");
@@ -203,6 +218,7 @@ const AddBlog = () => {
             order: index + 1,
             type: "image",
             imageIndex: imageCounter, // Reference to images array index
+            caption: item.caption || "",
           });
           imageCounter++;
         }
@@ -516,6 +532,44 @@ const AddBlog = () => {
                 </Box>
               </Grid>
 
+              <Grid item xs={12} sm={5.8} md={3.8} sx={{ width: "100%", mt: 3 }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Author Role
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="authorRole"
+                    placeholder="e.g. Trip Lead · Hosting since 2021"
+                    value={blog.authorRole || ""}
+                    onChange={(e) =>
+                      handleFirstSectionChange("authorRole", e.target.value)
+                    }
+                  />
+                </Box>
+              </Grid>
+
+              <Grid item xs={12} sx={{ width: "100%", mt: 3 }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Author Bio
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="authorBio"
+                    placeholder="Short bio shown in the author card under the article"
+                    multiline
+                    fullWidth
+                    value={blog.authorBio || ""}
+                    onChange={(e) =>
+                      handleFirstSectionChange("authorBio", e.target.value)
+                    }
+                  />
+                </Box>
+              </Grid>
+
               <Grid item xs={12} sx={{ width: "100%", mt: 3 }}>
                 <Box sx={{ width: "100%" }}>
                   <Typography
@@ -735,6 +789,26 @@ const AddBlog = () => {
                         />
                       </Button>
                     )}
+                    {/* Caption — shown as figcaption under the image on the blog */}
+                    <textarea
+                      value={item.caption || ""}
+                      onChange={(e) =>
+                        handleCaptionChange(item.id, e.target.value)
+                      }
+                      style={{
+                        border: "1px solid #E7E7E7",
+                        width: "100%",
+                        outline: "none",
+                        borderRadius: "10px",
+                        padding: "10px",
+                        fontFamily: "Ubuntu",
+                        fontSize: "13px",
+                        marginTop: "10px",
+                        resize: "vertical",
+                      }}
+                      rows="2"
+                      placeholder="Image caption (optional)"
+                    />
                   </>
                 )}
               </Box>
