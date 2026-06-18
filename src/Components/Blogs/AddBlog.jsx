@@ -13,6 +13,7 @@ import { Delete, Add } from "@mui/icons-material";
 import { useAddBlogMutation } from "../../Redux/services";
 import Loading from "../../smallComponents/Loading";
 import Toastify from "../../smallComponents/Toastify";
+import RichTextEditor from "./RichTextEditor";
 
 const array = [
   {
@@ -184,8 +185,12 @@ const AddBlog = () => {
       const items = [];
       let imageCounter = 0; // Counter for image files array
 
+      // Quill emits "<p><br></p>" for an empty editor — treat that as blank.
+      const isBlankHtml = (html) =>
+        !html || !html.replace(/<[^>]+>/g, "").replace(/&nbsp;|\s/g, "").trim();
+
       contentItems.forEach((item, index) => {
-        if (item.type === "content" && item.content?.trim()) {
+        if (item.type === "content" && !isBlankHtml(item.content)) {
           // Content item: include the text directly
           items.push({
             order: index + 1,
@@ -601,30 +606,10 @@ const AddBlog = () => {
                         <Delete fontSize="small" />
                       </IconButton>
                     </Box>
-                    <textarea
+                    <RichTextEditor
                       value={item.content || ""}
-                      onChange={(e) => handleContentChange(item.id, e.target.value)}
-                      style={{
-                        border: "1px solid #E7E7E7",
-                        width: "100%",
-                        outline: "none",
-                        borderColor: "#E7E7E7",
-                        transition: "border-color 0.3s ease",
-                        borderRadius: "10px",
-                        padding: "12px",
-                        fontFamily: "Ubuntu",
-                        fontSize: "14px",
-                        minHeight: "120px",
-                        resize: "vertical",
-                      }}
-                      rows="8"
+                      onChange={(html) => handleContentChange(item.id, html)}
                       placeholder="Enter your content here..."
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#CD482A";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#E7E7E7";
-                      }}
                     />
                   </>
                 ) : (

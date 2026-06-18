@@ -1,0 +1,30 @@
+/* RichTextEditor (Quill) — match admin blog form look */
+.ql-toolbar.ql-snow {
+  border: 1px solid #e7e7e7;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: #fafafa;
+}
+.ql-container.ql-snow {
+  border: 1px solid #e7e7e7;
+  border-radius: 0 0 10px 10px;
+  font-family: Ubuntu, system-ui, sans-serif;
+  font-size: 14px;
+}
+.ql-editor {
+  min-height: 160px;
+}
+.ql-editor.ql-blank::before {
+  font-style: normal;
+  color: #9ca3af;
+}
+.ql-snow .ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow .ql-toolbar button.ql-active .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke {
+  stroke: #cd482a;
+}
+.ql-snow .ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-fill {
+  fill: #cd482a;
+}
