@@ -17,7 +17,18 @@ const BannerApis = api.injectEndpoints({
         method: "GET",
       }),
     }),
+    updateCategorySection: builder.mutation({
+      query: (body) => ({
+        url: "/updateCategorySection",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useAddCoverImageMutation, useGetAllBannerQuery } = BannerApis;
+export const {
+  useAddCoverImageMutation,
+  useGetAllBannerQuery,
+  useUpdateCategorySectionMutation,
+} = BannerApis;

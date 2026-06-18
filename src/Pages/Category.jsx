@@ -18,6 +18,8 @@ import {
   useDeleteCategoryMutation,
   useGetAllCategoriesQuery,
   useUpdateCategoryMutation,
+  useGetAllBannerQuery,
+  useUpdateCategorySectionMutation,
 } from "../Redux/services";
 import Loading from "../smallComponents/Loading";
 import Toastify from "../smallComponents/Toastify";
@@ -54,6 +56,32 @@ const Category = () => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [selectCategory, setSelectCategory] = useState(null);
 
+  // Homepage category-section copy (title + subtitle), stored on the cover-images doc.
+  const { data: bannerData } = useGetAllBannerQuery();
+  const [updateCategorySection, { isLoading: savingSection }] =
+    useUpdateCategorySectionMutation();
+  const [catTitle, setCatTitle] = useState("");
+  const [catSubtitle, setCatSubtitle] = useState("");
+  useEffect(() => {
+    const item = bannerData?.data?.[0];
+    if (item) {
+      setCatTitle(item.categorySectionTitle || "");
+      setCatSubtitle(item.categorySectionSubtitle || "");
+    }
+  }, [bannerData]);
+
+  const handleSaveSection = async () => {
+    try {
+      await updateCategorySection({
+        categorySectionTitle: catTitle,
+        categorySectionSubtitle: catSubtitle,
+      }).unwrap();
+      showToast("Category section updated", "success");
+    } catch {
+      showToast("Failed to update category section", "error");
+    }
+  };
+
   const array = [
     {
       name: "title",
@@ -62,13 +90,8 @@ const Category = () => {
       type: "text",
       required: true,
     },
-    {
-      name: "startFrom",
-      title: "Starting From*",
-      value: selectCategory?.Starting_From,
-      type: "text",
-      required: true,
-    },
+    // "Starting From" is now derived automatically from the cheapest trip in the
+    // category on the website, so it is no longer an editable field here.
     {
       name: "bannerImage",
       title: "Banner Image*",
@@ -235,10 +258,6 @@ const Category = () => {
       showToast("Category name is required", "error");
       return;
     }
-    if (!category?.startFrom?.trim()) {
-      showToast("Starting from is required", "error");
-      return;
-    }
     if (!bannerPreview && !category?.bannerImage) {
       showToast("Banner image is required", "error");
       return;
@@ -319,6 +338,67 @@ const Category = () => {
           py: { xs: 2, sm: 3, md: 4 },
         }}
       >
+        {/* ── Homepage category-section copy (title + subtitle) ── */}
+        <Paper
+          elevation={0}
+          sx={{
+            border: "1px solid #E5E7EB",
+            borderRadius: "8px",
+            p: { xs: 2, md: 3 },
+            mb: { xs: 3, md: 4 },
+            width: "100%",
+          }}
+        >
+          <Typography sx={{ fontWeight: 600, color: "#393938", mb: 2 }}>
+            Homepage Category Section
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 640 }}>
+            <Box>
+              <Typography sx={{ color: "#737373", mb: 0.5, fontSize: "14px" }}>
+                Section Title
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Choose Your Adventure"
+                value={catTitle}
+                onChange={(e) => setCatTitle(e.target.value)}
+              />
+            </Box>
+            <Box>
+              <Typography sx={{ color: "#737373", mb: 0.5, fontSize: "14px" }}>
+                Section Subtitle / Highlights
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                multiline
+                minRows={2}
+                placeholder="From serene mountain treks to adrenaline-pumping expeditions — find your perfect experience."
+                value={catSubtitle}
+                onChange={(e) => setCatSubtitle(e.target.value)}
+              />
+            </Box>
+            <Box>
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={handleSaveSection}
+                disabled={savingSection}
+                sx={{
+                  backgroundColor: "#EC3F18",
+                  textTransform: "none",
+                  borderRadius: "8px",
+                  px: 3,
+                  "&:hover": { backgroundColor: "#CD482A" },
+                }}
+              >
+                {savingSection ? "Saving..." : "Save Section"}
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
+
         <Box
           sx={{
             display: "flex",

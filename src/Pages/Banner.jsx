@@ -33,9 +33,6 @@ const Banner = () => {
 
   // Toggle state for video enable/disable
   const [toggle, setToggle] = useState(false);
-  // Editable homepage category-section copy
-  const [catTitle, setCatTitle] = useState("");
-  const [catSubtitle, setCatSubtitle] = useState("");
 
   // Load data from API
   useEffect(() => {
@@ -92,8 +89,6 @@ const Banner = () => {
       if (typeof item.toggle === 'boolean') {
         setToggle(item.toggle);
       }
-      setCatTitle(item.categorySectionTitle || "");
-      setCatSubtitle(item.categorySectionSubtitle || "");
     }
   }, [data]);
 
@@ -381,8 +376,6 @@ const Banner = () => {
       if (banner?.homeVideo) formDataToSend.append("homeVideo", banner.homeVideo);
       
       formDataToSend.append("toggle", toggle);
-      formDataToSend.append("categorySectionTitle", catTitle);
-      formDataToSend.append("categorySectionSubtitle", catSubtitle);
 
       const response = await addCoverImage(formDataToSend).unwrap();
       setLoading(false);
@@ -435,31 +428,6 @@ const Banner = () => {
                     setToggle(!toggle);
                   }}
                 />
-              </Box>
-
-              {/* Homepage category section copy (title + subtitle) */}
-              <Box sx={{ mt: 2, mb: 1, display: "flex", flexDirection: "column", gap: 2, maxWidth: 640 }}>
-                <Box>
-                  <Typography sx={{ color: "#737373", mb: 0.5 }}>Category Section Title</Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Choose Your Adventure"
-                    value={catTitle}
-                    onChange={(e) => setCatTitle(e.target.value)}
-                  />
-                </Box>
-                <Box>
-                  <Typography sx={{ color: "#737373", mb: 0.5 }}>Category Section Subtitle</Typography>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    multiline
-                    placeholder="From serene mountain treks to adrenaline-pumping expeditions — find your perfect experience."
-                    value={catSubtitle}
-                    onChange={(e) => setCatSubtitle(e.target.value)}
-                  />
-                </Box>
               </Box>
               <Grid
                 container
