@@ -14,6 +14,7 @@ import { useUpdateBlogMutation } from "../../Redux/services";
 import Loading from "../../smallComponents/Loading";
 import Toastify from "../../smallComponents/Toastify";
 import { useLocation, useNavigate } from "react-router-dom";
+import RichTextEditor from "./RichTextEditor";
 
 const array = [
   {
@@ -732,30 +733,10 @@ const PublishBlog = () => {
                         <Delete fontSize="small" />
                       </IconButton>
                     </Box>
-                    <textarea
+                    <RichTextEditor
                       value={item.content || ""}
-                      onChange={(e) => handleContentChange(item.id, e.target.value)}
-                      style={{
-                        border: "1px solid #E7E7E7",
-                        width: "100%",
-                        outline: "none",
-                        borderColor: "#E7E7E7",
-                        transition: "border-color 0.3s ease",
-                        borderRadius: "10px",
-                        padding: "12px",
-                        fontFamily: "Ubuntu",
-                        fontSize: "14px",
-                        minHeight: "120px",
-                        resize: "vertical",
-                      }}
-                      rows="8"
+                      onChange={(html) => handleContentChange(item.id, html)}
                       placeholder="Enter your content here..."
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#CD482A";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#E7E7E7";
-                      }}
                     />
                   </>
                 ) : (
