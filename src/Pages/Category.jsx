@@ -94,10 +94,10 @@ const Category = () => {
     // category on the website, so it is no longer an editable field here.
     {
       name: "bannerImage",
-      title: "Banner Image*",
+      title: "Category Card Image*",
       value: selectCategory?.Banner_Image,
       type: "file",
-      plach: "Upload Banner Image",
+      plach: "Upload Card Image",
       required: true,
     },
   ];
@@ -111,6 +111,19 @@ const Category = () => {
 
   // State for image previews
   const [bannerPreview, setBannerPreview] = useState(null);
+
+  // Category Page Banner Image (separate from the card image)
+  const [pageBannerImage, setPageBannerImage] = useState(null);
+  const [pageBannerPreview, setPageBannerPreview] = useState(null);
+  useEffect(() => {
+    setPageBannerImage(null);
+    setPageBannerPreview(selectCategory?.Page_Banner_Image || null);
+  }, [selectCategory]);
+  const handlePageBanner = (file) => {
+    if (!file) return;
+    setPageBannerImage(file);
+    setPageBannerPreview(URL.createObjectURL(file));
+  };
 
   // Update category state and preview when selectCategory changes
   useEffect(() => {
@@ -271,6 +284,9 @@ const Category = () => {
       formDataToSend.append("Starting_From", category?.startFrom);
 
       // Only append banner image if a new file was selected
+      if (pageBannerImage) {
+        formDataToSend.append("Page_Banner_Image", pageBannerImage);
+      }
       if (category?.bannerImage) {
         formDataToSend.append("Banner_Image", category?.bannerImage);
       }
@@ -654,6 +670,38 @@ const Category = () => {
                     );
                   })}
                 </Grid>
+
+                {/* Category Page Banner Image (hero on the category page) */}
+                <Box sx={{ mt: 3, width: { xs: "100%", md: "60%" } }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Category Page Banner Image
+                  </Typography>
+                  {pageBannerPreview && (
+                    <Box
+                      component="img"
+                      src={pageBannerPreview}
+                      alt="Page banner preview"
+                      sx={{
+                        width: "100%",
+                        maxWidth: 360,
+                        height: 140,
+                        objectFit: "cover",
+                        borderRadius: "8px",
+                        border: "1px solid #E7E7E7",
+                        mb: 1.5,
+                        display: "block",
+                      }}
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handlePageBanner(e.target.files?.[0])}
+                  />
+                  <Typography sx={{ color: "#9CA3AF", fontSize: "12px", mt: 0.5 }}>
+                    1128 * 379 Pixel · shown as the hero banner on this category&apos;s page
+                  </Typography>
+                </Box>
 
                 {/* Action Buttons */}
                 <Box
