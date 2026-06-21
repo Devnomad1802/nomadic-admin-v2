@@ -111,6 +111,7 @@ const AddHost = () => {
 
     // 5. About Information
     hostOverview: "",
+    shortBio: "",
     foundedYear: "",
     experience: "",
     hqLocation: "",
@@ -275,6 +276,7 @@ const AddHost = () => {
 
         // About Information
         hostOverview: hostData.hostOverview || "",
+        shortBio: hostData.shortBio || "",
         foundedYear: hostData.foundedYear || "",
         experience: hostData.experience || "",
         hqLocation: hostData.hqLocation || "",
@@ -417,6 +419,7 @@ const AddHost = () => {
 
     // About Information
     formDataToSend.append("hostOverview", formData.hostOverview);
+    formDataToSend.append("shortBio", formData.shortBio || "");
     formDataToSend.append("foundedYear", formData.foundedYear);
     formDataToSend.append("experience", formData.experience);
     formDataToSend.append("hqLocation", formData.hqLocation);
@@ -1060,6 +1063,21 @@ const AddHost = () => {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={3}>
+                {/* Short Bio (card description for Meet Our Hosts) */}
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Short Bio (card description)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    fullWidth
+                    name="shortBio"
+                    placeholder="One-line description shown on the Meet Our Hosts card (optional)"
+                    value={formData.shortBio}
+                    onChange={(e) => handleChange("shortBio", e.target.value)}
+                  />
+                </Grid>
                 {/* Host Overview */}
                 <Grid item xs={12}>
                   <Typography sx={{ color: "#737373", mb: 1 }}>
