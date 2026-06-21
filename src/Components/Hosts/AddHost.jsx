@@ -125,6 +125,7 @@ const AddHost = () => {
     // 7. Trust & Service Quality
     isVerified: false,
     tripsHosted: 0,
+    travellersHosted: 0,
     successRate: 0,
     responseTimeLabel: "",
 
@@ -290,6 +291,7 @@ const AddHost = () => {
         // Trust & Service Quality - Fix field name mismatch
         isVerified: hostData.isVerified || false,
         tripsHosted: hostData.tripsHosted || 0,
+        travellersHosted: hostData.travellersHosted || 0,
         successRate: hostData.successRate || 0,
         responseTimeLabel: hostData.responseTimeLabel || "",
 
@@ -434,6 +436,7 @@ const AddHost = () => {
     // Trust & Service Quality
     formDataToSend.append("isVerified", formData.isVerified);
     formDataToSend.append("tripsHosted", formData.tripsHosted);
+    formDataToSend.append("travellersHosted", formData.travellersHosted);
     formDataToSend.append("successRate", formData.successRate);
     formDataToSend.append("responseTimeLabel", formData.responseTimeLabel);
 
@@ -1615,6 +1618,22 @@ const AddHost = () => {
                     onChange={(e) =>
                       handleChange("tripsHosted", e.target.value)
                     }
+                    inputProps={{ min: 0, step: 0 }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Travellers Hosted
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="travellersHosted"
+                    type="number"
+                    placeholder="0"
+                    value={formData.travellersHosted}
+                    onChange={(e) => handleChange("travellersHosted", e.target.value)}
                     inputProps={{ min: 0, step: 0 }}
                   />
                 </Grid>
