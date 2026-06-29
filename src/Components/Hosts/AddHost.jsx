@@ -19,7 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   useCreateHostMutation,
@@ -59,8 +59,6 @@ const AddHost = () => {
   );
 
   const isLoading = isCreating || isUpdating || isLoadingHost;
-  const [achievementDropdownOpen, setAchievementDropdownOpen] = useState(false);
-  const achievementDropdownRef = useRef(null);
 
   // Toast state
   const [toast, setToast] = useState({
@@ -376,23 +374,6 @@ const AddHost = () => {
       console.log("Form Data Set Successfully");
     }
   }, [isEditMode, existingHost]);
-
-  // Click outside handler for achievement dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        achievementDropdownRef.current &&
-        !achievementDropdownRef.current.contains(event.target)
-      ) {
-        setAchievementDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
