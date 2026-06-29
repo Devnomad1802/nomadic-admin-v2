@@ -127,7 +127,9 @@ const AddHost = () => {
     tripsHosted: 0,
     travellersHosted: 0,
     successRate: 0,
+    responseRate: 0,
     responseTimeLabel: "",
+    regionsHosted: [],
 
     // 8. Contact Information
     phoneNumber: "",
@@ -293,7 +295,9 @@ const AddHost = () => {
         tripsHosted: hostData.tripsHosted || 0,
         travellersHosted: hostData.travellersHosted || 0,
         successRate: hostData.successRate || 0,
+        responseRate: hostData.responseRate || 0,
         responseTimeLabel: hostData.responseTimeLabel || "",
+        regionsHosted: hostData.regionsHosted || [],
 
         // Contact Information
         phoneNumber: hostData.phoneNumber || "",
@@ -438,7 +442,12 @@ const AddHost = () => {
     formDataToSend.append("tripsHosted", formData.tripsHosted);
     formDataToSend.append("travellersHosted", formData.travellersHosted);
     formDataToSend.append("successRate", formData.successRate);
+    formDataToSend.append("responseRate", formData.responseRate);
     formDataToSend.append("responseTimeLabel", formData.responseTimeLabel);
+    formDataToSend.append(
+      "regionsHosted",
+      JSON.stringify(formData.regionsHosted)
+    );
 
     // Contact Information
     formDataToSend.append("emailAddress", formData.emailAddress);
@@ -1668,6 +1677,50 @@ const AddHost = () => {
                     value={formData.responseTimeLabel}
                     onChange={(e) =>
                       handleChange("responseTimeLabel", e.target.value)
+                    }
+                  />
+                </Grid>
+
+                {/* Fourth Row - Response Rate and Regions Hosted */}
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Response Rate (%)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="responseRate"
+                    type="number"
+                    placeholder="0"
+                    value={formData.responseRate}
+                    onChange={(e) =>
+                      handleChange("responseRate", e.target.value)
+                    }
+                    inputProps={{ min: 0, max: 100, step: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Regions Hosted (comma separated)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="regionsHosted"
+                    placeholder="e.g. Annapurna, Everest, Mustang"
+                    value={
+                      Array.isArray(formData.regionsHosted)
+                        ? formData.regionsHosted.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleChange(
+                        "regionsHosted",
+                        e.target.value
+                          .split(",")
+                          .map((r) => r.trim())
+                          .filter(Boolean)
+                      )
                     }
                   />
                 </Grid>
