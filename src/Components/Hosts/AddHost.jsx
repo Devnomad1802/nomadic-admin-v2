@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Container,
   FormControl,
   FormControlLabel,
@@ -25,21 +26,6 @@ import {
   useGetHostByIdQuery,
   useUpdateHostMutation,
 } from "../../Redux/services/hostsApi";
-
-const specialties = [
-  "Adventure Trekking",
-  "Cultural Tours",
-  "Photography Tours",
-  "Motorcycle Tours",
-  "Mountain Climbing",
-  "Wildlife Safari",
-  "Wellness Retreats",
-  "Desert Safari",
-  "Beach Activities",
-  "Spiritual Journeys",
-  "Food & Culinary",
-  "River Rafting",
-];
 
 const availableAchievements = [
   "Best Adventure Guide 2023",
@@ -121,6 +107,10 @@ const AddHost = () => {
 
     // 6. Specialties & Expertise
     specialties: [],
+    languages: [],
+
+    // Ask the host (FAQ)
+    faqs: [],
 
     // 7. Trust & Service Quality
     isVerified: false,
@@ -198,12 +188,34 @@ const AddHost = () => {
     }));
   };
 
-  const handleSpecialtiesChange = (specialty) => {
+  // Convert a comma-separated string into a trimmed, de-duplicated array for
+  // free-form multi-value fields (specialties, languages, regions).
+  const handleCsvChange = (field, value) => {
+    const list = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setFormData((prevState) => ({ ...prevState, [field]: list }));
+  };
+
+  // ---- Ask the host (FAQ) row management ----
+  const handleFaqChange = (index, key, value) => {
+    setFormData((prevState) => {
+      const faqs = [...(prevState.faqs || [])];
+      faqs[index] = { ...faqs[index], [key]: value };
+      return { ...prevState, faqs };
+    });
+  };
+  const handleFaqAdd = () => {
     setFormData((prevState) => ({
       ...prevState,
-      specialties: prevState.specialties.includes(specialty)
-        ? prevState.specialties.filter((item) => item !== specialty)
-        : [...prevState.specialties, specialty],
+      faqs: [...(prevState.faqs || []), { question: "", answer: "" }],
+    }));
+  };
+  const handleFaqRemove = (index) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      faqs: (prevState.faqs || []).filter((_, i) => i !== index),
     }));
   };
 
@@ -289,6 +301,8 @@ const AddHost = () => {
 
         // Specialties & Expertise
         specialties: hostData.specialties || [],
+        languages: hostData.languages || [],
+        faqs: hostData.faqs || [],
 
         // Trust & Service Quality - Fix field name mismatch
         isVerified: hostData.isVerified || false,
@@ -436,6 +450,8 @@ const AddHost = () => {
 
     // Specialties & Expertise
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
+    formDataToSend.append("languages", JSON.stringify(formData.languages));
+    formDataToSend.append("faqs", JSON.stringify(formData.faqs));
 
     // Trust & Service Quality
     formDataToSend.append("isVerified", formData.isVerified);
@@ -1533,37 +1549,173 @@ const AddHost = () => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <Grid container spacing={2}>
-                {specialties.map((specialty) => (
-                  <Grid item xs={12} sm={6} md={4} key={specialty}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.specialties.includes(specialty)}
-                          onChange={() => handleSpecialtiesChange(specialty)}
-                          sx={{
-                            color: "#E7E7E7",
-                            "&.Mui-checked": {
-                              color: "#EC3F18",
-                            },
-                          }}
-                        />
-                      }
-                      label={
-                        <Typography
-                          sx={{
-                            color: "#393938",
-                            fontSize: "14px",
-                            fontFamily: "Ubuntu",
-                          }}
-                        >
-                          {specialty}
-                        </Typography>
-                      }
-                    />
-                  </Grid>
-                ))}
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Specialties / Expertise (comma separated)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="specialties"
+                    placeholder="e.g. Trekking & guiding, Homestays, Photography walks"
+                    value={
+                      Array.isArray(formData.specialties)
+                        ? formData.specialties.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("specialties", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.specialties) &&
+                    formData.specialties.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.specialties.map((s) => (
+                          <Chip
+                            key={s}
+                            label={s}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                specialties: prev.specialties.filter(
+                                  (x) => x !== s
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Languages (comma separated)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="languages"
+                    placeholder="e.g. English, Nepali, Hindi, Tibetan"
+                    value={
+                      Array.isArray(formData.languages)
+                        ? formData.languages.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("languages", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.languages) &&
+                    formData.languages.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.languages.map((l) => (
+                          <Chip
+                            key={l}
+                            label={l}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                languages: prev.languages.filter(
+                                  (x) => x !== l
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                </Grid>
               </Grid>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Ask the Host (FAQ) Section */}
+          <Accordion sx={{ mb: 2, ...accordionStyle }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+              >
+                Ask the Host (FAQ)
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography sx={{ color: "#737373", mb: 2, fontSize: "13px" }}>
+                Add common questions travellers ask, with the host&apos;s answer.
+                These appear in the &quot;Ask the host&quot; section of the host
+                detail page. Leave empty to show generic defaults.
+              </Typography>
+              {(formData.faqs || []).map((faq, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    border: "1px solid #E7E7E7",
+                    borderRadius: "8px",
+                    p: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography sx={{ color: "#393938", fontWeight: 600 }}>
+                      Question {index + 1}
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={() => handleFaqRemove(index)}
+                      sx={{ color: "#EC3F18", textTransform: "none" }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    sx={{ ...inputStyle, mb: 1.5 }}
+                    size="small"
+                    placeholder="Question"
+                    value={faq.question || ""}
+                    onChange={(e) =>
+                      handleFaqChange(index, "question", e.target.value)
+                    }
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={2}
+                    sx={inputStyle}
+                    size="small"
+                    placeholder="Answer"
+                    value={faq.answer || ""}
+                    onChange={(e) =>
+                      handleFaqChange(index, "answer", e.target.value)
+                    }
+                  />
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleFaqAdd}
+                sx={{
+                  border: "1px solid #E7E7E7",
+                  color: "#737373",
+                  borderRadius: "8px",
+                  textTransform: "none",
+                }}
+              >
+                + Add Question
+              </Button>
             </AccordionDetails>
           </Accordion>
 
