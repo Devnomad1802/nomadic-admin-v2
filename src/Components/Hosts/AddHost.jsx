@@ -27,17 +27,19 @@ import {
   useUpdateHostMutation,
 } from "../../Redux/services/hostsApi";
 
-const availableAchievements = [
-  "Best Adventure Guide 2023",
-  "5-Star Rating Excellence",
-  "Customer Choice Award",
-  "Safety Certification",
-  "Eco-Friendly Tourism Award",
-  "Local Expert Recognition",
-  "TripAdvisor Excellence",
-  "Sustainable Tourism Award",
-  "Cultural Heritage Expert",
-  "Photography Tour Specialist",
+const BADGE_ICON_OPTIONS = [
+  "verified",
+  "shield",
+  "certificate",
+  "award",
+  "trophy",
+  "star",
+  "firstaid",
+  "mountain",
+  "camera",
+  "leaf",
+  "language",
+  "clock",
 ];
 
 const AddHost = () => {
@@ -111,6 +113,9 @@ const AddHost = () => {
 
     // Ask the host (FAQ)
     faqs: [],
+
+    // Verification badges (admin-managed trust badges)
+    verificationBadges: [],
 
     // 7. Trust & Service Quality
     isVerified: false,
@@ -219,12 +224,29 @@ const AddHost = () => {
     }));
   };
 
-  const handleAchievementToggle = (achievement) => {
+  // ---- Verification badge row management ----
+  const handleBadgeChange = (index, key, value) => {
+    setFormData((prevState) => {
+      const verificationBadges = [...(prevState.verificationBadges || [])];
+      verificationBadges[index] = { ...verificationBadges[index], [key]: value };
+      return { ...prevState, verificationBadges };
+    });
+  };
+  const handleBadgeAdd = () => {
     setFormData((prevState) => ({
       ...prevState,
-      achievements: prevState.achievements.includes(achievement)
-        ? prevState.achievements.filter((item) => item !== achievement)
-        : [...prevState.achievements, achievement],
+      verificationBadges: [
+        ...(prevState.verificationBadges || []),
+        { title: "", subtitle: "", icon: "verified" },
+      ],
+    }));
+  };
+  const handleBadgeRemove = (index) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      verificationBadges: (prevState.verificationBadges || []).filter(
+        (_, i) => i !== index
+      ),
     }));
   };
 
@@ -303,6 +325,7 @@ const AddHost = () => {
         specialties: hostData.specialties || [],
         languages: hostData.languages || [],
         faqs: hostData.faqs || [],
+        verificationBadges: hostData.verificationBadges || [],
 
         // Trust & Service Quality - Fix field name mismatch
         isVerified: hostData.isVerified || false,
@@ -452,6 +475,10 @@ const AddHost = () => {
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
     formDataToSend.append("languages", JSON.stringify(formData.languages));
     formDataToSend.append("faqs", JSON.stringify(formData.faqs));
+    formDataToSend.append(
+      "verificationBadges",
+      JSON.stringify(formData.verificationBadges)
+    );
 
     // Trust & Service Quality
     formDataToSend.append("isVerified", formData.isVerified);
@@ -1252,164 +1279,45 @@ const AddHost = () => {
                   <Typography sx={{ color: "#737373", mb: 1 }}>
                     Achievements
                   </Typography>
-                  <Box
-                    sx={{ position: "relative" }}
-                    ref={achievementDropdownRef}
-                  >
-                    {/* Selected Achievements Display */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 1,
-                        minHeight: "45px",
-                        padding: "8px 12px",
-                        border: "1px solid #E7E7E7",
-                        borderRadius: "8px",
-                        backgroundColor: "#fff",
-                        cursor: "pointer",
-                        "&:hover": {
-                          border: "1px solid #EC3F18",
-                        },
-                      }}
-                      onClick={() =>
-                        setAchievementDropdownOpen(!achievementDropdownOpen)
-                      }
-                    >
-                      {formData.achievements.length > 0 ? (
-                        formData.achievements.map((achievement, index) => (
-                          <Box
-                            key={index}
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              backgroundColor: "#f5f5f5",
-                              padding: "6px 10px",
-                              borderRadius: "16px",
-                              border: "1px solid #E7E7E7",
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Typography
-                              sx={{
-                                color: "#393938",
-                                fontSize: "13px",
-                                fontFamily: "Ubuntu",
-                              }}
-                            >
-                              {achievement}
-                            </Typography>
-                            <Button
-                              size="small"
-                              sx={{
-                                minWidth: "auto",
-                                width: "16px",
-                                height: "16px",
-                                backgroundColor: "rgba(0,0,0,0.1)",
-                                color: "#737373",
-                                fontSize: "12px",
-                                "&:hover": {
-                                  backgroundColor: "rgba(0,0,0,0.2)",
-                                },
-                              }}
-                              onClick={() =>
-                                handleAchievementToggle(achievement)
-                              }
-                            >
-                              ×
-                            </Button>
-                          </Box>
-                        ))
-                      ) : (
-                        <Typography
-                          sx={{
-                            color: "#737373",
-                            fontSize: "14px",
-                            fontFamily: "Ubuntu",
-                          }}
-                        >
-                          Select achievements...
-                        </Typography>
-                      )}
-                    </Box>
-
-                    {/* Dropdown Arrow */}
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#737373",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      ▼
-                    </Box>
-
-                    {/* Dropdown Menu */}
-                    {achievementDropdownOpen && (
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          right: 0,
-                          backgroundColor: "#fff",
-                          border: "1px solid #E7E7E7",
-                          borderRadius: "8px",
-                          boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
-                          zIndex: 1000,
-                          maxHeight: "200px",
-                          overflowY: "auto",
-                          mt: 1,
-                        }}
-                      >
-                        {availableAchievements.map((achievement) => (
-                          <Box
-                            key={achievement}
-                            sx={{
-                              padding: "10px 12px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              "&:hover": {
-                                backgroundColor: "#f5f5f5",
-                              },
-                              backgroundColor: formData.achievements.includes(
-                                achievement
-                              )
-                                ? "#fff5f5"
-                                : "transparent",
-                            }}
-                            onClick={() => handleAchievementToggle(achievement)}
-                          >
-                            <Typography
-                              sx={{
-                                color: "#393938",
-                                fontSize: "14px",
-                                fontFamily: "Ubuntu",
-                              }}
-                            >
-                              {achievement}
-                            </Typography>
-                            {formData.achievements.includes(achievement) && (
-                              <Box
-                                sx={{
-                                  color: "#EC3F18",
-                                  fontSize: "16px",
-                                }}
-                              >
-                                ✓
-                              </Box>
-                            )}
-                          </Box>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="achievements"
+                    placeholder="e.g. Wilderness First-Aid, UIMLA Mountain Leader, Top-rated 2025"
+                    value={
+                      Array.isArray(formData.achievements)
+                        ? formData.achievements.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("achievements", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.achievements) &&
+                    formData.achievements.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.achievements.map((a) => (
+                          <Chip
+                            key={a}
+                            label={a}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                achievements: prev.achievements.filter(
+                                  (x) => x !== a
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
                         ))}
                       </Box>
                     )}
-                  </Box>
+                  <Typography sx={{ color: "#9b9b9b", fontSize: "12px", mt: 1 }}>
+                    Comma separated. Shown as certification badges on the host
+                    page (when no custom verification badges are set).
+                  </Typography>
                 </Grid>
 
                 {/* Gallery */}
@@ -1715,6 +1623,111 @@ const AddHost = () => {
                 }}
               >
                 + Add Question
+              </Button>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Verification Badges Section */}
+          <Accordion sx={{ mb: 2, ...accordionStyle }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+              >
+                Verification Badges
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography sx={{ color: "#737373", mb: 2, fontSize: "13px" }}>
+                Add trust badges shown in the &quot;Verification &amp; badges&quot;
+                section of the host detail page. Leave empty to auto-generate
+                badges from Verified status, Achievements and rebook rate.
+              </Typography>
+              {(formData.verificationBadges || []).map((badge, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    border: "1px solid #E7E7E7",
+                    borderRadius: "8px",
+                    p: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography sx={{ color: "#393938", fontWeight: 600 }}>
+                      Badge {index + 1}
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={() => handleBadgeRemove(index)}
+                      sx={{ color: "#EC3F18", textTransform: "none" }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        sx={inputStyle}
+                        size="small"
+                        placeholder="Title (e.g. ID verified)"
+                        value={badge.title || ""}
+                        onChange={(e) =>
+                          handleBadgeChange(index, "title", e.target.value)
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth size="small">
+                        <Select
+                          sx={inputStyle}
+                          value={badge.icon || "verified"}
+                          onChange={(e) =>
+                            handleBadgeChange(index, "icon", e.target.value)
+                          }
+                        >
+                          {BADGE_ICON_OPTIONS.map((opt) => (
+                            <MenuItem key={opt} value={opt}>
+                              {opt}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        sx={inputStyle}
+                        size="small"
+                        placeholder="Subtitle (e.g. Government ID confirmed)"
+                        value={badge.subtitle || ""}
+                        onChange={(e) =>
+                          handleBadgeChange(index, "subtitle", e.target.value)
+                        }
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleBadgeAdd}
+                sx={{
+                  border: "1px solid #E7E7E7",
+                  color: "#737373",
+                  borderRadius: "8px",
+                  textTransform: "none",
+                }}
+              >
+                + Add Badge
               </Button>
             </AccordionDetails>
           </Accordion>
