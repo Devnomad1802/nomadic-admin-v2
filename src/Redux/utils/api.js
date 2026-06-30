@@ -14,6 +14,7 @@ export const api = createApi({
     "user",
     "Blogs",
     "Reviews",
+    "HostReviews",
     "Coupons",
     "venders",
     "hosts",

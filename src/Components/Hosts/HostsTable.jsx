@@ -1,5 +1,6 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import RateReviewIcon from "@mui/icons-material/RateReview";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   Box,
@@ -305,6 +306,17 @@ const HostsTable = () => {
                         sx={{ color: "#EC3F18" }}
                       >
                         <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Manage Reviews">
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          navigate(`/hosts/${host._id}/reviews`)
+                        }
+                        sx={{ color: "#393938" }}
+                      >
+                        <RateReviewIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete Host">

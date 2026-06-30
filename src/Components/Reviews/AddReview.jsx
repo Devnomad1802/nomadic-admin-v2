@@ -95,8 +95,10 @@ const AddReview = () => {
     rating: 4,
     profileimage: null,
     Review: "",
+    source: "manual",
+    location: "",
+    tripName: "",
   });
-  console.log("review", review);
 
   const handleChange = (name, value) => {
     setReview((prevState) => ({
@@ -130,9 +132,11 @@ const AddReview = () => {
       formDataToSend.append("rating", review?.rating);
       formDataToSend.append("Job", review?.job);
       formDataToSend.append("Profile_Image", review?.profileimage);
+      formDataToSend.append("source", review?.source || "manual");
+      formDataToSend.append("location", review?.location || "");
+      formDataToSend.append("tripName", review?.tripName || "");
 
       const res = await addReview(formDataToSend).unwrap();
-      console.log("res.....", res);
       setLoading(false);
       showToast(res?.message, "success");
     } catch (error) {
@@ -288,6 +292,53 @@ const AddReview = () => {
                       </MenuItem>
                     ))}
                   </TextField>
+                </Box>
+              </Grid>
+
+              {/* Source / Location / Trip (brand review metadata) */}
+              <Grid item xs={12} sm={5.8} md={3.8} sx={{ width: "100%", mt: 3 }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Source
+                  </Typography>
+                  <TextField
+                    sx={inputStyle2}
+                    select
+                    value={review.source}
+                    style={{ minWidth: "100px" }}
+                    size="small"
+                    onChange={(e) => handleChange("source", e.target.value)}
+                  >
+                    <MenuItem value="manual">Manual</MenuItem>
+                    <MenuItem value="google">Google</MenuItem>
+                  </TextField>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={5.8} md={3.8} sx={{ width: "100%", mt: 3 }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Location
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    placeholder="e.g. Goa, India"
+                    value={review.location}
+                    onChange={(e) => handleChange("location", e.target.value)}
+                  />
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={5.8} md={3.8} sx={{ width: "100%", mt: 3 }}>
+                <Box sx={{ width: "100%" }}>
+                  <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                    Trip (optional)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    value={review.tripName}
+                    onChange={(e) => handleChange("tripName", e.target.value)}
+                  />
                 </Box>
               </Grid>
             </Grid>

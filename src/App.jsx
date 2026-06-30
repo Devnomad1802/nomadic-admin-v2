@@ -17,6 +17,7 @@ import PublishBlog from "./Components/Blogs/PublishBlog";
 import AddCoupon from "./Components/Coupon/AddCoupon";
 import CouponTabs from "./Components/Coupon/CouponTabs";
 import AddHost from "./Components/Hosts/AddHost";
+import HostReviews from "./Components/Hosts/HostReviews";
 import AddReview from "./Components/Reviews/AddReview";
 import PublishReview from "./Components/Reviews/PublishReview";
 import AddTrip from "./Components/Trips/AddTrip";
@@ -117,6 +118,7 @@ const App = () => {
             <Route path="/hosts" element={<Hosts />} />
             <Route path="/hosts/addHost" element={<AddHost />} />
             <Route path="/hosts/edit/:id" element={<AddHost />} />
+            <Route path="/hosts/:id/reviews" element={<HostReviews />} />
             <Route path="/aboutus" element={<AboutUs />} />
             <Route path="/aboutus/editabout" element={<AboutEdit />} />
             <Route path="/category" element={<Category />} />
