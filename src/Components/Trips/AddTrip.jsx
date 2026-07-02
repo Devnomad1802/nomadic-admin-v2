@@ -403,6 +403,12 @@ const AddTrip = () => {
     Exclusion: "",
     ThingsToCarry: "",
     Cancellation: "",
+    difficulty: "",
+    bestSeason: "",
+    groupSize: "",
+    importantInfo: "",
+    termsNotes: "",
+    faqs: "", // textarea, one FAQ per line as "Question | Answer"
     highlights: "",
     discount: [],
     gallaryImages: [],
@@ -832,6 +838,21 @@ const AddTrip = () => {
       formDataToSend.append("seoTitle", formData.seoTitle || "");
       formDataToSend.append("seoSlug", formData.seoSlug || "");
       formDataToSend.append("metaDescription", formData.metaDescription || "");
+      // Trip Detail extras
+      formDataToSend.append("difficulty", formData.difficulty || "");
+      formDataToSend.append("bestSeason", formData.bestSeason || "");
+      formDataToSend.append("groupSize", formData.groupSize || "");
+      formDataToSend.append("importantInfo", formData.importantInfo || "");
+      formDataToSend.append("termsNotes", formData.termsNotes || "");
+      formDataToSend.append(
+        "faqs",
+        JSON.stringify(
+          (formData.faqs || "")
+            .split("\n")
+            .map((line) => { const [q, ...a] = line.split("|"); return { q: (q || "").trim(), a: a.join("|").trim() }; })
+            .filter((f) => f.q && f.a)
+        )
+      );
 
       // Append multiple images to formDataToSend
       formData.gallaryImages.forEach((image) => {
@@ -2142,6 +2163,28 @@ const AddTrip = () => {
                       "#E7E7E7";
                   }}
                 />
+
+                {/* ── Trip Detail extras (all optional) ── */}
+                {[
+                  { key: "difficulty", label: "Difficulty (e.g. Moderate)" },
+                  { key: "bestSeason", label: "Best season (e.g. Mar – May)" },
+                  { key: "groupSize", label: "Group size (e.g. Max 12)" },
+                ].map((f) => (
+                  <Box key={f.key}>
+                    <Typography sx={{ color: "#737373", textAlign: "left", mt: 2 }}>{f.label}</Typography>
+                    <input
+                      style={{ border: "1px solid #E7E7E7", width: "100%", outline: "none", padding: "8px" }}
+                      value={formData[f.key]}
+                      onChange={(e) => handleChange(f.key, e.target.value)}
+                    />
+                  </Box>
+                ))}
+                <Typography sx={{ color: "#737373", textAlign: "left", mt: 2 }}>Important information</Typography>
+                <textarea style={{ border: "1px solid #E7E7E7", width: "100%", outline: "none" }} rows="4" value={formData.importantInfo} onChange={(e) => handleChange("importantInfo", e.target.value)} />
+                <Typography sx={{ color: "#737373", textAlign: "left", mt: 2 }}>Terms & notes</Typography>
+                <textarea style={{ border: "1px solid #E7E7E7", width: "100%", outline: "none" }} rows="4" value={formData.termsNotes} onChange={(e) => handleChange("termsNotes", e.target.value)} />
+                <Typography sx={{ color: "#737373", textAlign: "left", mt: 2 }}>FAQs — one per line as: Question | Answer</Typography>
+                <textarea style={{ border: "1px solid #E7E7E7", width: "100%", outline: "none" }} rows="5" placeholder="Do I need experience? | No, a basic fitness level is enough." value={formData.faqs} onChange={(e) => handleChange("faqs", e.target.value)} />
               </Box>
             </AccordionDetails>
           </Accordion>
