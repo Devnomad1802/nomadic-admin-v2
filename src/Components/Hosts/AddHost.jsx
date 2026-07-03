@@ -46,6 +46,8 @@ const AddHost = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
+  const DRAFT_KEY = "nomadicHostDraft"; // autosaved new-host draft (add mode only)
+  const [draftFound, setDraftFound] = useState(false);
 
   const [createHost, { isLoading: isCreating }] = useCreateHostMutation();
   const [updateHost, { isLoading: isUpdating }] = useUpdateHostMutation();
@@ -375,6 +377,43 @@ const AddHost = () => {
     }
   }, [isEditMode, existingHost]);
 
+  // ---- Draft auto-save (add mode only) ----
+  // On mount, detect an existing draft and offer Continue / Discard.
+  useEffect(() => {
+    if (isEditMode) return;
+    try { if (localStorage.getItem(DRAFT_KEY)) setDraftFound(true); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
+
+  // Debounced save of serialisable fields (File objects can't be persisted).
+  useEffect(() => {
+    if (isEditMode) return undefined;
+    const t = setTimeout(() => {
+      try {
+        const {
+          brandingLogo, coverImage, gallery, panCard, gstCertificate,
+          bankPassbook, businessLicense, previousGallery, ...serialisable
+        } = formData;
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), data: serialisable }));
+      } catch { /* quota / serialise errors ignored */ }
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, isEditMode]);
+
+  const continueDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed?.data) setFormData((prev) => ({ ...prev, ...parsed.data }));
+    } catch { /* ignore */ }
+    setDraftFound(false);
+  };
+  const discardDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setDraftFound(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -529,6 +568,7 @@ const AddHost = () => {
         const result = await createHost(formDataToSend).unwrap();
         console.log("Create successful:", result);
         showToast("Host created successfully!", "success");
+        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       }
 
       // Wait for toast to be visible before navigating
@@ -604,6 +644,28 @@ const AddHost = () => {
       </style>
       <form onSubmit={handleSubmit}>
         <Container maxWidth="lg" sx={{ width: "100%" }}>
+          {/* Draft restore banner (add mode) */}
+          {draftFound && !isEditMode && (
+            <Box
+              sx={{
+                mt: 2, mb: 1, p: 2, borderRadius: "8px",
+                background: "#FFF7ED", border: "1px solid #FED7AA",
+                display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap",
+              }}
+            >
+              <Typography sx={{ flex: 1, minWidth: 220, color: "#7C2D12", fontSize: "14px" }}>
+                Unsaved draft found from a previous session. Uploaded files aren&apos;t restored — please re-attach documents/images.
+              </Typography>
+              <Button size="small" variant="contained" onClick={continueDraft}
+                sx={{ background: "#EC3F18", textTransform: "none", "&:hover": { background: "#c4472c" } }}>
+                Continue Draft
+              </Button>
+              <Button size="small" variant="outlined" onClick={discardDraft}
+                sx={{ color: "#7C2D12", borderColor: "#FED7AA", textTransform: "none" }}>
+                Discard Draft
+              </Button>
+            </Box>
+          )}
           {/* Page Title */}
           <Box sx={{ mb: 3, pt: 2 }}>
             <Typography
@@ -1673,6 +1735,17 @@ const AddHost = () => {
                           onChange={(e) =>
                             handleBadgeChange(index, "icon", e.target.value)
                           }
+                          MenuProps={{
+                            PaperProps: {
+                              sx: {
+                                bgcolor: "#fff",
+                                "& .MuiMenuItem-root": { color: "#1F2937" },
+                                "& .MuiMenuItem-root:hover": { bgcolor: "#F3EDE3", color: "#EC3F18" },
+                                "& .MuiMenuItem-root.Mui-selected": { bgcolor: "#FDE7E0", color: "#EC3F18" },
+                                "& .MuiMenuItem-root.Mui-selected:hover": { bgcolor: "#FBD9CE", color: "#EC3F18" },
+                              },
+                            },
+                          }}
                         >
                           {BADGE_ICON_OPTIONS.map((opt) => (
                             <MenuItem key={opt} value={opt}>
@@ -1948,7 +2021,8 @@ const AddHost = () => {
             </AccordionDetails>
           </Accordion>
 
-          {/* Social Media Section */}
+          {/* Social Media Section — disabled per request (P3). Code kept, not rendered. */}
+          {false && (
           <Accordion sx={{ mb: 2, ...accordionStyle }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography
@@ -2022,6 +2096,7 @@ const AddHost = () => {
               </Grid>
             </AccordionDetails>
           </Accordion>
+          )}
 
           {/* Document Uploads Section */}
           <Accordion sx={{ mb: 2, ...accordionStyle }}>
