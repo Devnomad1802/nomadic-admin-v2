@@ -51,6 +51,15 @@ const HostsApis = api.injectEndpoints({
       invalidatesTags: ["host"],
     }),
 
+    // Activate host: approve + create/link Host-Dashboard login + email credentials
+    activateHost: builder.mutation({
+      query: (id) => ({
+        url: `/host-portal/activate/${id}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["host"],
+    }),
+
     // Update Status
     updateStatus: builder.mutation({
       query: ({ id, status }) => ({
@@ -105,6 +114,7 @@ export const {
   useGetHostByIdQuery,
   useUpdateHostMutation,
   useDeleteHostMutation,
+  useActivateHostMutation,
   useUpdateStatusMutation,
   useToggleStatusMutation,
   useGetHostsBySpecialtyQuery,

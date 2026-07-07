@@ -21,6 +21,7 @@ import AddReview from "./Components/Reviews/AddReview";
 import PublishReview from "./Components/Reviews/PublishReview";
 import AddTrip from "./Components/Trips/AddTrip";
 import TripBookings from "./Components/Trips/TripBookings";
+import Proposals from "./Components/Trips/Proposals";
 import AddVendors from "./Components/Vendor/AddVendors";
 import VenderTabs from "./Components/Vendor/VenderTabs";
 import AboutUs from "./Pages/AboutUs";
@@ -81,6 +82,7 @@ const App = () => {
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/trip" element={<TripBookings />} />
             <Route path="/trip/addtrip" element={<AddTrip />} />
+            <Route path="/trip/proposals" element={<Proposals />} />
             <Route path="/trip/tripTabs" element={<TripsTabs />} />
             <Route path="/user" element={<UserBooking />} />
             <Route path="/user/userTabs" element={<UserTabs />} />

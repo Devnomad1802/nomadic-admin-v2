@@ -39,6 +39,10 @@ const array2 = [
     link1: "/trip",
   },
   {
+    name: "Trip Proposals",
+    link1: "/trip/proposals",
+  },
+  {
     name: "User",
     link1: "/user",
   },

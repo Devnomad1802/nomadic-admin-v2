@@ -1,5 +1,6 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import KeyIcon from "@mui/icons-material/Key";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   Box,
@@ -21,6 +22,7 @@ import TableRow from "@mui/material/TableRow";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  useActivateHostMutation,
   useDeleteHostMutation,
   useGetAllHostsQuery,
   useUpdateStatusMutation,
@@ -43,6 +45,28 @@ const HostsTable = () => {
   const { data: hosts = [], isLoading, error } = useGetAllHostsQuery();
   const [updateStatus] = useUpdateStatusMutation();
   const [deleteHost] = useDeleteHostMutation();
+  const [activateHost, { isLoading: activating }] = useActivateHostMutation();
+
+  // Approve + create/link the host's dashboard login + email credentials.
+  const handleActivate = async (host) => {
+    try {
+      const res = await activateHost(host._id).unwrap();
+      const pw = res?.data?.tempPassword;
+      setAlertState({
+        open: true,
+        type: res?.data?.emailSent ? "success" : "warning",
+        message: pw
+          ? `Activated. Email failed — share manually: ${host.emailAddress} / ${pw}`
+          : res?.message || "Host activated.",
+      });
+    } catch (err) {
+      setAlertState({
+        open: true,
+        type: "error",
+        message: err?.data?.message || "Activation failed.",
+      });
+    }
+  };
 
   // Handle status toggle
   const handleStatusToggle = async (hostId, currentStatus) => {
@@ -296,6 +320,18 @@ const HostsTable = () => {
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title={host.user ? "Dashboard login active" : "Activate host login (approve + email credentials)"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={!!host.user || activating}
+                          onClick={() => handleActivate(host)}
+                          sx={{ color: host.user ? "#22C55E" : "#3B82F6" }}
+                        >
+                          <KeyIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                     <Tooltip title="Edit Host">
                       <IconButton
                         size="small"
