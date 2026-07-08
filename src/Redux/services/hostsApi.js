@@ -4,6 +4,23 @@ import { api } from "../utils";
 const HostsApis = api.injectEndpoints({
   overrideExisting: false,
   endpoints: (builder) => ({
+    // Host applications ("Become a Host" pipeline)
+    getHostApplications: builder.query({
+      query: (status) => ({
+        url: status ? `/host-portal/applications?status=${status}` : "/host-portal/applications",
+        method: "GET",
+      }),
+      providesTags: ["hostApplications"],
+    }),
+    updateHostApplication: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/host-portal/applications/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["hostApplications"],
+    }),
+
     // Create Host
     createHost: builder.mutation({
       query: (formDataToSend) => ({
@@ -115,6 +132,8 @@ export const {
   useUpdateHostMutation,
   useDeleteHostMutation,
   useActivateHostMutation,
+  useGetHostApplicationsQuery,
+  useUpdateHostApplicationMutation,
   useUpdateStatusMutation,
   useToggleStatusMutation,
   useGetHostsBySpecialtyQuery,

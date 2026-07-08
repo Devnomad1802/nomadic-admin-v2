@@ -22,6 +22,7 @@ import PublishReview from "./Components/Reviews/PublishReview";
 import AddTrip from "./Components/Trips/AddTrip";
 import TripBookings from "./Components/Trips/TripBookings";
 import Proposals from "./Components/Trips/Proposals";
+import HostApplications from "./Components/Hosts/HostApplications";
 import AddVendors from "./Components/Vendor/AddVendors";
 import VenderTabs from "./Components/Vendor/VenderTabs";
 import AboutUs from "./Pages/AboutUs";
@@ -117,6 +118,7 @@ const App = () => {
             />
             <Route path="/banner" element={<Banner />} />
             <Route path="/hosts" element={<Hosts />} />
+            <Route path="/hosts/applications" element={<HostApplications />} />
             <Route path="/hosts/addHost" element={<AddHost />} />
             <Route path="/hosts/edit/:id" element={<AddHost />} />
             <Route path="/aboutus" element={<AboutUs />} />

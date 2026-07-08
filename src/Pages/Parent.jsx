@@ -59,6 +59,10 @@ const array2 = [
     link1: "/hosts",
   },
   {
+    name: "Host Applications",
+    link1: "/hosts/applications",
+  },
+  {
     name: "Payouts",
     link1: "/payouts",
   },
