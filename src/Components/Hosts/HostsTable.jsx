@@ -68,11 +68,16 @@ const HostsTable = () => {
     }
   };
 
-  // Handle status toggle
+  // Handle status toggle. Rejection asks for a reason — it is shown to the
+  // host in their dashboard verification banner.
   const handleStatusToggle = async (hostId, currentStatus) => {
     try {
       const newStatus = currentStatus === "approved" ? "rejected" : "approved";
-      await updateStatus({ id: hostId, status: newStatus }).unwrap();
+      let rejectionReason;
+      if (newStatus === "rejected") {
+        rejectionReason = window.prompt("Reason for rejection (shown to the host):") || "";
+      }
+      await updateStatus({ id: hostId, status: newStatus, rejectionReason }).unwrap();
     } catch (error) {
       console.error("Error updating status:", error);
     }

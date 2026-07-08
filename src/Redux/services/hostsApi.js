@@ -79,10 +79,10 @@ const HostsApis = api.injectEndpoints({
 
     // Update Status
     updateStatus: builder.mutation({
-      query: ({ id, status }) => ({
+      query: ({ id, status, rejectionReason }) => ({
         url: `/host/${id}/status`,
         method: "PATCH",
-        body: { status },
+        body: rejectionReason !== undefined ? { status, rejectionReason } : { status },
       }),
       invalidatesTags: ["host"],
     }),
