@@ -19,6 +19,7 @@ export const api = createApi({
     "venders",
     "hosts",
     "payout",
+    "hostApplications",
   ],
   baseQuery: fetchBaseQuery({
     baseUrl,

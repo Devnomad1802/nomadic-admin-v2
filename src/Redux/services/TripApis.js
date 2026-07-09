@@ -21,6 +21,15 @@ const TripApis = api.injectEndpoints({
       }),
       invalidatesTags: ["trips"],
     }),
+    // Approve / reject / request-changes on host trip proposals.
+    updateTripStatus: builder.mutation({
+      query: ({ tripId, Status, adminFeedback }) => ({
+        url: "/updateTripStatus",
+        method: "POST",
+        body: { tripId, Status, adminFeedback },
+      }),
+      invalidatesTags: ["trips"],
+    }),
 
     getBookingsByTripId: builder.mutation({
       query: ({ tripId }) => ({
@@ -53,5 +62,6 @@ export const {
   useGetTripsQuery,
   useGetBookingsByTripIdMutation,
   useUpdateTripMutation,
+  useUpdateTripStatusMutation,
   useDeleteTripsMutation,
 } = TripApis;

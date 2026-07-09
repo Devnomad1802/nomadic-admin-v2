@@ -1,5 +1,10 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import KeyIcon from "@mui/icons-material/Key";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
+import LockIcon from "@mui/icons-material/Lock";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
@@ -22,8 +27,10 @@ import TableRow from "@mui/material/TableRow";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  useActivateHostMutation,
   useDeleteHostMutation,
   useGetAllHostsQuery,
+  useUpdateHostFlagsMutation,
   useUpdateStatusMutation,
 } from "../../Redux/services/hostsApi";
 import GenericDeleteModal from "../../smallComponents/GenericDeleteModal";
@@ -44,12 +51,62 @@ const HostsTable = () => {
   const { data: hosts = [], isLoading, error } = useGetAllHostsQuery();
   const [updateStatus] = useUpdateStatusMutation();
   const [deleteHost] = useDeleteHostMutation();
+  const [activateHost, { isLoading: activating }] = useActivateHostMutation();
+  const [updateHostFlags] = useUpdateHostFlagsMutation();
 
-  // Handle status toggle
+  // Toggle website visibility / dashboard access (admin controls).
+  const handleFlagToggle = async (host, flag) => {
+    const next = !(host[flag] !== false); // undefined counts as true
+    try {
+      await updateHostFlags({ id: host._id, [flag]: next }).unwrap();
+      setAlertState({
+        open: true,
+        message:
+          flag === "showOnWebsite"
+            ? `Host ${next ? "visible on" : "hidden from"} the website`
+            : `Dashboard access ${next ? "enabled" : "disabled"}`,
+        type: "success",
+      });
+    } catch (err) {
+      setAlertState({
+        open: true,
+        message: err?.data?.message || "Could not update host",
+        type: "error",
+      });
+    }
+  };
+
+  // Approve + create/link the host's dashboard login + email credentials.
+  const handleActivate = async (host) => {
+    try {
+      const res = await activateHost(host._id).unwrap();
+      const pw = res?.data?.tempPassword;
+      setAlertState({
+        open: true,
+        type: res?.data?.emailSent ? "success" : "warning",
+        message: pw
+          ? `Activated. Email failed — share manually: ${host.emailAddress} / ${pw}`
+          : res?.message || "Host activated.",
+      });
+    } catch (err) {
+      setAlertState({
+        open: true,
+        type: "error",
+        message: err?.data?.message || "Activation failed.",
+      });
+    }
+  };
+
+  // Handle status toggle. Rejection asks for a reason — it is shown to the
+  // host in their dashboard verification banner.
   const handleStatusToggle = async (hostId, currentStatus) => {
     try {
       const newStatus = currentStatus === "approved" ? "rejected" : "approved";
-      await updateStatus({ id: hostId, status: newStatus }).unwrap();
+      let rejectionReason;
+      if (newStatus === "rejected") {
+        rejectionReason = window.prompt("Reason for rejection (shown to the host):") || "";
+      }
+      await updateStatus({ id: hostId, status: newStatus, rejectionReason }).unwrap();
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -297,6 +354,36 @@ const HostsTable = () => {
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title={host.showOnWebsite !== false ? "Shown on website — click to hide" : "Hidden from website — click to show"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleFlagToggle(host, "showOnWebsite")}
+                        sx={{ color: host.showOnWebsite !== false ? "#22C55E" : "#9CA3AF" }}
+                      >
+                        {host.showOnWebsite !== false ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={host.dashboardAccess !== false ? "Dashboard access enabled — click to disable" : "Dashboard access disabled — click to enable"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleFlagToggle(host, "dashboardAccess")}
+                        sx={{ color: host.dashboardAccess !== false ? "#22C55E" : "#EF4444" }}
+                      >
+                        {host.dashboardAccess !== false ? <LockOpenIcon /> : <LockIcon />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={host.user ? "Dashboard login active" : "Activate host login (approve + email credentials)"}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={!!host.user || activating}
+                          onClick={() => handleActivate(host)}
+                          sx={{ color: host.user ? "#22C55E" : "#3B82F6" }}
+                        >
+                          <KeyIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                     <Tooltip title="Edit Host">
                       <IconButton
                         size="small"

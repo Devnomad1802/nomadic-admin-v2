@@ -4,6 +4,23 @@ import { api } from "../utils";
 const HostsApis = api.injectEndpoints({
   overrideExisting: false,
   endpoints: (builder) => ({
+    // Host applications ("Become a Host" pipeline)
+    getHostApplications: builder.query({
+      query: (status) => ({
+        url: status ? `/host-portal/applications?status=${status}` : "/host-portal/applications",
+        method: "GET",
+      }),
+      providesTags: ["hostApplications"],
+    }),
+    updateHostApplication: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/host-portal/applications/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["hostApplications"],
+    }),
+
     // Create Host
     createHost: builder.mutation({
       query: (formDataToSend) => ({
@@ -17,7 +34,8 @@ const HostsApis = api.injectEndpoints({
     // Get All Hosts
     getAllHosts: builder.query({
       query: () => ({
-        url: "/host",
+        // Admin table must also list hosts hidden from the public website.
+        url: "/host?includeHidden=true",
         method: "GET",
       }),
       providesTags: ["host"],
@@ -51,17 +69,36 @@ const HostsApis = api.injectEndpoints({
       invalidatesTags: ["host"],
     }),
 
+    // Activate host: approve + create/link Host-Dashboard login + email credentials
+    activateHost: builder.mutation({
+      query: (id) => ({
+        url: `/host-portal/activate/${id}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["host"],
+    }),
+
     // Update Status
     updateStatus: builder.mutation({
-      query: ({ id, status }) => ({
+      query: ({ id, status, rejectionReason }) => ({
         url: `/host/${id}/status`,
         method: "PATCH",
-        body: { status },
+        body: rejectionReason !== undefined ? { status, rejectionReason } : { status },
       }),
       invalidatesTags: ["host"],
     }),
 
     // Toggle Status
+    // Admin controls: website visibility + dashboard access
+    updateHostFlags: builder.mutation({
+      query: ({ id, ...flags }) => ({
+        url: `/host/${id}/flags`,
+        method: "PATCH",
+        body: flags,
+      }),
+      invalidatesTags: ["host"],
+    }),
+
     toggleStatus: builder.mutation({
       query: (id) => ({
         url: `/host/${id}/toggle-status`,
@@ -100,11 +137,15 @@ const HostsApis = api.injectEndpoints({
 });
 
 export const {
+  useUpdateHostFlagsMutation,
   useCreateHostMutation,
   useGetAllHostsQuery,
   useGetHostByIdQuery,
   useUpdateHostMutation,
   useDeleteHostMutation,
+  useActivateHostMutation,
+  useGetHostApplicationsQuery,
+  useUpdateHostApplicationMutation,
   useUpdateStatusMutation,
   useToggleStatusMutation,
   useGetHostsBySpecialtyQuery,
