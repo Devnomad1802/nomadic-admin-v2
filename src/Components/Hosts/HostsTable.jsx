@@ -1,6 +1,10 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import KeyIcon from "@mui/icons-material/Key";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
+import LockIcon from "@mui/icons-material/Lock";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
@@ -26,6 +30,7 @@ import {
   useActivateHostMutation,
   useDeleteHostMutation,
   useGetAllHostsQuery,
+  useUpdateHostFlagsMutation,
   useUpdateStatusMutation,
 } from "../../Redux/services/hostsApi";
 import GenericDeleteModal from "../../smallComponents/GenericDeleteModal";
@@ -47,6 +52,29 @@ const HostsTable = () => {
   const [updateStatus] = useUpdateStatusMutation();
   const [deleteHost] = useDeleteHostMutation();
   const [activateHost, { isLoading: activating }] = useActivateHostMutation();
+  const [updateHostFlags] = useUpdateHostFlagsMutation();
+
+  // Toggle website visibility / dashboard access (admin controls).
+  const handleFlagToggle = async (host, flag) => {
+    const next = !(host[flag] !== false); // undefined counts as true
+    try {
+      await updateHostFlags({ id: host._id, [flag]: next }).unwrap();
+      setAlertState({
+        open: true,
+        message:
+          flag === "showOnWebsite"
+            ? `Host ${next ? "visible on" : "hidden from"} the website`
+            : `Dashboard access ${next ? "enabled" : "disabled"}`,
+        type: "success",
+      });
+    } catch (err) {
+      setAlertState({
+        open: true,
+        message: err?.data?.message || "Could not update host",
+        type: "error",
+      });
+    }
+  };
 
   // Approve + create/link the host's dashboard login + email credentials.
   const handleActivate = async (host) => {
@@ -326,6 +354,24 @@ const HostsTable = () => {
                 </TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title={host.showOnWebsite !== false ? "Shown on website — click to hide" : "Hidden from website — click to show"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleFlagToggle(host, "showOnWebsite")}
+                        sx={{ color: host.showOnWebsite !== false ? "#22C55E" : "#9CA3AF" }}
+                      >
+                        {host.showOnWebsite !== false ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={host.dashboardAccess !== false ? "Dashboard access enabled — click to disable" : "Dashboard access disabled — click to enable"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleFlagToggle(host, "dashboardAccess")}
+                        sx={{ color: host.dashboardAccess !== false ? "#22C55E" : "#EF4444" }}
+                      >
+                        {host.dashboardAccess !== false ? <LockOpenIcon /> : <LockIcon />}
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title={host.user ? "Dashboard login active" : "Activate host login (approve + email credentials)"}>
                       <span>
                         <IconButton

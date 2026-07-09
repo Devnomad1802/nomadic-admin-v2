@@ -34,7 +34,8 @@ const HostsApis = api.injectEndpoints({
     // Get All Hosts
     getAllHosts: builder.query({
       query: () => ({
-        url: "/host",
+        // Admin table must also list hosts hidden from the public website.
+        url: "/host?includeHidden=true",
         method: "GET",
       }),
       providesTags: ["host"],
@@ -88,6 +89,16 @@ const HostsApis = api.injectEndpoints({
     }),
 
     // Toggle Status
+    // Admin controls: website visibility + dashboard access
+    updateHostFlags: builder.mutation({
+      query: ({ id, ...flags }) => ({
+        url: `/host/${id}/flags`,
+        method: "PATCH",
+        body: flags,
+      }),
+      invalidatesTags: ["host"],
+    }),
+
     toggleStatus: builder.mutation({
       query: (id) => ({
         url: `/host/${id}/toggle-status`,
@@ -126,6 +137,7 @@ const HostsApis = api.injectEndpoints({
 });
 
 export const {
+  useUpdateHostFlagsMutation,
   useCreateHostMutation,
   useGetAllHostsQuery,
   useGetHostByIdQuery,
