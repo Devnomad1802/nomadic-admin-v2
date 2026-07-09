@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   Container,
   FormControl,
   FormControlLabel,
@@ -18,7 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import MuiAlert from "@mui/material/Alert";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   useCreateHostMutation,
@@ -26,38 +27,27 @@ import {
   useUpdateHostMutation,
 } from "../../Redux/services/hostsApi";
 
-const specialties = [
-  "Adventure Trekking",
-  "Cultural Tours",
-  "Photography Tours",
-  "Motorcycle Tours",
-  "Mountain Climbing",
-  "Wildlife Safari",
-  "Wellness Retreats",
-  "Desert Safari",
-  "Beach Activities",
-  "Spiritual Journeys",
-  "Food & Culinary",
-  "River Rafting",
-];
-
-const availableAchievements = [
-  "Best Adventure Guide 2023",
-  "5-Star Rating Excellence",
-  "Customer Choice Award",
-  "Safety Certification",
-  "Eco-Friendly Tourism Award",
-  "Local Expert Recognition",
-  "TripAdvisor Excellence",
-  "Sustainable Tourism Award",
-  "Cultural Heritage Expert",
-  "Photography Tour Specialist",
+const BADGE_ICON_OPTIONS = [
+  "verified",
+  "shield",
+  "certificate",
+  "award",
+  "trophy",
+  "star",
+  "firstaid",
+  "mountain",
+  "camera",
+  "leaf",
+  "language",
+  "clock",
 ];
 
 const AddHost = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
+  const DRAFT_KEY = "nomadicHostDraft"; // autosaved new-host draft (add mode only)
+  const [draftFound, setDraftFound] = useState(false);
 
   const [createHost, { isLoading: isCreating }] = useCreateHostMutation();
   const [updateHost, { isLoading: isUpdating }] = useUpdateHostMutation();
@@ -71,8 +61,6 @@ const AddHost = () => {
   );
 
   const isLoading = isCreating || isUpdating || isLoadingHost;
-  const [achievementDropdownOpen, setAchievementDropdownOpen] = useState(false);
-  const achievementDropdownRef = useRef(null);
 
   // Toast state
   const [toast, setToast] = useState({
@@ -121,13 +109,22 @@ const AddHost = () => {
 
     // 6. Specialties & Expertise
     specialties: [],
+    languages: [],
+
+    // Ask the host (FAQ)
+    faqs: [],
+
+    // Verification badges (admin-managed trust badges)
+    verificationBadges: [],
 
     // 7. Trust & Service Quality
     isVerified: false,
     tripsHosted: 0,
     travellersHosted: 0,
     successRate: 0,
+    responseRate: 0,
     responseTimeLabel: "",
+    regionsHosted: [],
 
     // 8. Contact Information
     phoneNumber: "",
@@ -196,21 +193,60 @@ const AddHost = () => {
     }));
   };
 
-  const handleSpecialtiesChange = (specialty) => {
+  // Convert a comma-separated string into a trimmed, de-duplicated array for
+  // free-form multi-value fields (specialties, languages, regions).
+  const handleCsvChange = (field, value) => {
+    const list = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setFormData((prevState) => ({ ...prevState, [field]: list }));
+  };
+
+  // ---- Ask the host (FAQ) row management ----
+  const handleFaqChange = (index, key, value) => {
+    setFormData((prevState) => {
+      const faqs = [...(prevState.faqs || [])];
+      faqs[index] = { ...faqs[index], [key]: value };
+      return { ...prevState, faqs };
+    });
+  };
+  const handleFaqAdd = () => {
     setFormData((prevState) => ({
       ...prevState,
-      specialties: prevState.specialties.includes(specialty)
-        ? prevState.specialties.filter((item) => item !== specialty)
-        : [...prevState.specialties, specialty],
+      faqs: [...(prevState.faqs || []), { question: "", answer: "" }],
+    }));
+  };
+  const handleFaqRemove = (index) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      faqs: (prevState.faqs || []).filter((_, i) => i !== index),
     }));
   };
 
-  const handleAchievementToggle = (achievement) => {
+  // ---- Verification badge row management ----
+  const handleBadgeChange = (index, key, value) => {
+    setFormData((prevState) => {
+      const verificationBadges = [...(prevState.verificationBadges || [])];
+      verificationBadges[index] = { ...verificationBadges[index], [key]: value };
+      return { ...prevState, verificationBadges };
+    });
+  };
+  const handleBadgeAdd = () => {
     setFormData((prevState) => ({
       ...prevState,
-      achievements: prevState.achievements.includes(achievement)
-        ? prevState.achievements.filter((item) => item !== achievement)
-        : [...prevState.achievements, achievement],
+      verificationBadges: [
+        ...(prevState.verificationBadges || []),
+        { title: "", subtitle: "", icon: "verified" },
+      ],
+    }));
+  };
+  const handleBadgeRemove = (index) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      verificationBadges: (prevState.verificationBadges || []).filter(
+        (_, i) => i !== index
+      ),
     }));
   };
 
@@ -287,13 +323,18 @@ const AddHost = () => {
 
         // Specialties & Expertise
         specialties: hostData.specialties || [],
+        languages: hostData.languages || [],
+        faqs: hostData.faqs || [],
+        verificationBadges: hostData.verificationBadges || [],
 
         // Trust & Service Quality - Fix field name mismatch
         isVerified: hostData.isVerified || false,
         tripsHosted: hostData.tripsHosted || 0,
         travellersHosted: hostData.travellersHosted || 0,
         successRate: hostData.successRate || 0,
+        responseRate: hostData.responseRate || 0,
         responseTimeLabel: hostData.responseTimeLabel || "",
+        regionsHosted: hostData.regionsHosted || [],
 
         // Contact Information
         phoneNumber: hostData.phoneNumber || "",
@@ -336,22 +377,42 @@ const AddHost = () => {
     }
   }, [isEditMode, existingHost]);
 
-  // Click outside handler for achievement dropdown
+  // ---- Draft auto-save (add mode only) ----
+  // On mount, detect an existing draft and offer Continue / Discard.
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        achievementDropdownRef.current &&
-        !achievementDropdownRef.current.contains(event.target)
-      ) {
-        setAchievementDropdownOpen(false);
-      }
-    };
+    if (isEditMode) return;
+    try { if (localStorage.getItem(DRAFT_KEY)) setDraftFound(true); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  // Debounced save of serialisable fields (File objects can't be persisted).
+  useEffect(() => {
+    if (isEditMode) return undefined;
+    const t = setTimeout(() => {
+      try {
+        const {
+          brandingLogo, coverImage, gallery, panCard, gstCertificate,
+          bankPassbook, businessLicense, previousGallery, ...serialisable
+        } = formData;
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), data: serialisable }));
+      } catch { /* quota / serialise errors ignored */ }
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, isEditMode]);
+
+  const continueDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed?.data) setFormData((prev) => ({ ...prev, ...parsed.data }));
+    } catch { /* ignore */ }
+    setDraftFound(false);
+  };
+  const discardDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    setDraftFound(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -432,13 +493,24 @@ const AddHost = () => {
 
     // Specialties & Expertise
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
+    formDataToSend.append("languages", JSON.stringify(formData.languages));
+    formDataToSend.append("faqs", JSON.stringify(formData.faqs));
+    formDataToSend.append(
+      "verificationBadges",
+      JSON.stringify(formData.verificationBadges)
+    );
 
     // Trust & Service Quality
     formDataToSend.append("isVerified", formData.isVerified);
     formDataToSend.append("tripsHosted", formData.tripsHosted);
     formDataToSend.append("travellersHosted", formData.travellersHosted);
     formDataToSend.append("successRate", formData.successRate);
+    formDataToSend.append("responseRate", formData.responseRate);
     formDataToSend.append("responseTimeLabel", formData.responseTimeLabel);
+    formDataToSend.append(
+      "regionsHosted",
+      JSON.stringify(formData.regionsHosted)
+    );
 
     // Contact Information
     formDataToSend.append("emailAddress", formData.emailAddress);
@@ -496,6 +568,7 @@ const AddHost = () => {
         const result = await createHost(formDataToSend).unwrap();
         console.log("Create successful:", result);
         showToast("Host created successfully!", "success");
+        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       }
 
       // Wait for toast to be visible before navigating
@@ -571,6 +644,28 @@ const AddHost = () => {
       </style>
       <form onSubmit={handleSubmit}>
         <Container maxWidth="lg" sx={{ width: "100%" }}>
+          {/* Draft restore banner (add mode) */}
+          {draftFound && !isEditMode && (
+            <Box
+              sx={{
+                mt: 2, mb: 1, p: 2, borderRadius: "8px",
+                background: "#FFF7ED", border: "1px solid #FED7AA",
+                display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap",
+              }}
+            >
+              <Typography sx={{ flex: 1, minWidth: 220, color: "#7C2D12", fontSize: "14px" }}>
+                Unsaved draft found from a previous session. Uploaded files aren&apos;t restored — please re-attach documents/images.
+              </Typography>
+              <Button size="small" variant="contained" onClick={continueDraft}
+                sx={{ background: "#EC3F18", textTransform: "none", "&:hover": { background: "#c4472c" } }}>
+                Continue Draft
+              </Button>
+              <Button size="small" variant="outlined" onClick={discardDraft}
+                sx={{ color: "#7C2D12", borderColor: "#FED7AA", textTransform: "none" }}>
+                Discard Draft
+              </Button>
+            </Box>
+          )}
           {/* Page Title */}
           <Box sx={{ mb: 3, pt: 2 }}>
             <Typography
@@ -1227,164 +1322,45 @@ const AddHost = () => {
                   <Typography sx={{ color: "#737373", mb: 1 }}>
                     Achievements
                   </Typography>
-                  <Box
-                    sx={{ position: "relative" }}
-                    ref={achievementDropdownRef}
-                  >
-                    {/* Selected Achievements Display */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 1,
-                        minHeight: "45px",
-                        padding: "8px 12px",
-                        border: "1px solid #E7E7E7",
-                        borderRadius: "8px",
-                        backgroundColor: "#fff",
-                        cursor: "pointer",
-                        "&:hover": {
-                          border: "1px solid #EC3F18",
-                        },
-                      }}
-                      onClick={() =>
-                        setAchievementDropdownOpen(!achievementDropdownOpen)
-                      }
-                    >
-                      {formData.achievements.length > 0 ? (
-                        formData.achievements.map((achievement, index) => (
-                          <Box
-                            key={index}
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              backgroundColor: "#f5f5f5",
-                              padding: "6px 10px",
-                              borderRadius: "16px",
-                              border: "1px solid #E7E7E7",
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Typography
-                              sx={{
-                                color: "#393938",
-                                fontSize: "13px",
-                                fontFamily: "Ubuntu",
-                              }}
-                            >
-                              {achievement}
-                            </Typography>
-                            <Button
-                              size="small"
-                              sx={{
-                                minWidth: "auto",
-                                width: "16px",
-                                height: "16px",
-                                backgroundColor: "rgba(0,0,0,0.1)",
-                                color: "#737373",
-                                fontSize: "12px",
-                                "&:hover": {
-                                  backgroundColor: "rgba(0,0,0,0.2)",
-                                },
-                              }}
-                              onClick={() =>
-                                handleAchievementToggle(achievement)
-                              }
-                            >
-                              ×
-                            </Button>
-                          </Box>
-                        ))
-                      ) : (
-                        <Typography
-                          sx={{
-                            color: "#737373",
-                            fontSize: "14px",
-                            fontFamily: "Ubuntu",
-                          }}
-                        >
-                          Select achievements...
-                        </Typography>
-                      )}
-                    </Box>
-
-                    {/* Dropdown Arrow */}
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        right: "12px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#737373",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      ▼
-                    </Box>
-
-                    {/* Dropdown Menu */}
-                    {achievementDropdownOpen && (
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          right: 0,
-                          backgroundColor: "#fff",
-                          border: "1px solid #E7E7E7",
-                          borderRadius: "8px",
-                          boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
-                          zIndex: 1000,
-                          maxHeight: "200px",
-                          overflowY: "auto",
-                          mt: 1,
-                        }}
-                      >
-                        {availableAchievements.map((achievement) => (
-                          <Box
-                            key={achievement}
-                            sx={{
-                              padding: "10px 12px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              "&:hover": {
-                                backgroundColor: "#f5f5f5",
-                              },
-                              backgroundColor: formData.achievements.includes(
-                                achievement
-                              )
-                                ? "#fff5f5"
-                                : "transparent",
-                            }}
-                            onClick={() => handleAchievementToggle(achievement)}
-                          >
-                            <Typography
-                              sx={{
-                                color: "#393938",
-                                fontSize: "14px",
-                                fontFamily: "Ubuntu",
-                              }}
-                            >
-                              {achievement}
-                            </Typography>
-                            {formData.achievements.includes(achievement) && (
-                              <Box
-                                sx={{
-                                  color: "#EC3F18",
-                                  fontSize: "16px",
-                                }}
-                              >
-                                ✓
-                              </Box>
-                            )}
-                          </Box>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="achievements"
+                    placeholder="e.g. Wilderness First-Aid, UIMLA Mountain Leader, Top-rated 2025"
+                    value={
+                      Array.isArray(formData.achievements)
+                        ? formData.achievements.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("achievements", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.achievements) &&
+                    formData.achievements.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.achievements.map((a) => (
+                          <Chip
+                            key={a}
+                            label={a}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                achievements: prev.achievements.filter(
+                                  (x) => x !== a
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
                         ))}
                       </Box>
                     )}
-                  </Box>
+                  <Typography sx={{ color: "#9b9b9b", fontSize: "12px", mt: 1 }}>
+                    Comma separated. Shown as certification badges on the host
+                    page (when no custom verification badges are set).
+                  </Typography>
                 </Grid>
 
                 {/* Gallery */}
@@ -1524,37 +1500,289 @@ const AddHost = () => {
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
-              <Grid container spacing={2}>
-                {specialties.map((specialty) => (
-                  <Grid item xs={12} sm={6} md={4} key={specialty}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.specialties.includes(specialty)}
-                          onChange={() => handleSpecialtiesChange(specialty)}
-                          sx={{
-                            color: "#E7E7E7",
-                            "&.Mui-checked": {
-                              color: "#EC3F18",
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Specialties / Expertise (comma separated)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="specialties"
+                    placeholder="e.g. Trekking & guiding, Homestays, Photography walks"
+                    value={
+                      Array.isArray(formData.specialties)
+                        ? formData.specialties.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("specialties", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.specialties) &&
+                    formData.specialties.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.specialties.map((s) => (
+                          <Chip
+                            key={s}
+                            label={s}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                specialties: prev.specialties.filter(
+                                  (x) => x !== s
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Languages (comma separated)
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    sx={inputStyle}
+                    size="small"
+                    name="languages"
+                    placeholder="e.g. English, Nepali, Hindi, Tibetan"
+                    value={
+                      Array.isArray(formData.languages)
+                        ? formData.languages.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleCsvChange("languages", e.target.value)
+                    }
+                  />
+                  {Array.isArray(formData.languages) &&
+                    formData.languages.length > 0 && (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1.5 }}>
+                        {formData.languages.map((l) => (
+                          <Chip
+                            key={l}
+                            label={l}
+                            onDelete={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                languages: prev.languages.filter(
+                                  (x) => x !== l
+                                ),
+                              }))
+                            }
+                            sx={{ backgroundColor: "#FDF3EE", color: "#393938" }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Ask the Host (FAQ) Section */}
+          <Accordion sx={{ mb: 2, ...accordionStyle }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+              >
+                Ask the Host (FAQ)
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography sx={{ color: "#737373", mb: 2, fontSize: "13px" }}>
+                Add common questions travellers ask, with the host&apos;s answer.
+                These appear in the &quot;Ask the host&quot; section of the host
+                detail page. Leave empty to show generic defaults.
+              </Typography>
+              {(formData.faqs || []).map((faq, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    border: "1px solid #E7E7E7",
+                    borderRadius: "8px",
+                    p: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography sx={{ color: "#393938", fontWeight: 600 }}>
+                      Question {index + 1}
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={() => handleFaqRemove(index)}
+                      sx={{ color: "#EC3F18", textTransform: "none" }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    sx={{ ...inputStyle, mb: 1.5 }}
+                    size="small"
+                    placeholder="Question"
+                    value={faq.question || ""}
+                    onChange={(e) =>
+                      handleFaqChange(index, "question", e.target.value)
+                    }
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={2}
+                    sx={inputStyle}
+                    size="small"
+                    placeholder="Answer"
+                    value={faq.answer || ""}
+                    onChange={(e) =>
+                      handleFaqChange(index, "answer", e.target.value)
+                    }
+                  />
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleFaqAdd}
+                sx={{
+                  border: "1px solid #E7E7E7",
+                  color: "#737373",
+                  borderRadius: "8px",
+                  textTransform: "none",
+                }}
+              >
+                + Add Question
+              </Button>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Verification Badges Section */}
+          <Accordion sx={{ mb: 2, ...accordionStyle }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+              >
+                Verification Badges
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography sx={{ color: "#737373", mb: 2, fontSize: "13px" }}>
+                Add trust badges shown in the &quot;Verification &amp; badges&quot;
+                section of the host detail page. Leave empty to auto-generate
+                badges from Verified status, Achievements and rebook rate.
+              </Typography>
+              {(formData.verificationBadges || []).map((badge, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    border: "1px solid #E7E7E7",
+                    borderRadius: "8px",
+                    p: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography sx={{ color: "#393938", fontWeight: 600 }}>
+                      Badge {index + 1}
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={() => handleBadgeRemove(index)}
+                      sx={{ color: "#EC3F18", textTransform: "none" }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        sx={inputStyle}
+                        size="small"
+                        placeholder="Title (e.g. ID verified)"
+                        value={badge.title || ""}
+                        onChange={(e) =>
+                          handleBadgeChange(index, "title", e.target.value)
+                        }
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth size="small">
+                        <Select
+                          sx={inputStyle}
+                          value={badge.icon || "verified"}
+                          onChange={(e) =>
+                            handleBadgeChange(index, "icon", e.target.value)
+                          }
+                          MenuProps={{
+                            PaperProps: {
+                              sx: {
+                                bgcolor: "#fff",
+                                "& .MuiMenuItem-root": { color: "#1F2937" },
+                                "& .MuiMenuItem-root:hover": { bgcolor: "#F3EDE3", color: "#EC3F18" },
+                                "& .MuiMenuItem-root.Mui-selected": { bgcolor: "#FDE7E0", color: "#EC3F18" },
+                                "& .MuiMenuItem-root.Mui-selected:hover": { bgcolor: "#FBD9CE", color: "#EC3F18" },
+                              },
                             },
                           }}
-                        />
-                      }
-                      label={
-                        <Typography
-                          sx={{
-                            color: "#393938",
-                            fontSize: "14px",
-                            fontFamily: "Ubuntu",
-                          }}
                         >
-                          {specialty}
-                        </Typography>
-                      }
-                    />
+                          {BADGE_ICON_OPTIONS.map((opt) => (
+                            <MenuItem key={opt} value={opt}>
+                              {opt}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        sx={inputStyle}
+                        size="small"
+                        placeholder="Subtitle (e.g. Government ID confirmed)"
+                        value={badge.subtitle || ""}
+                        onChange={(e) =>
+                          handleBadgeChange(index, "subtitle", e.target.value)
+                        }
+                      />
+                    </Grid>
                   </Grid>
-                ))}
-              </Grid>
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleBadgeAdd}
+                sx={{
+                  border: "1px solid #E7E7E7",
+                  color: "#737373",
+                  borderRadius: "8px",
+                  textTransform: "none",
+                }}
+              >
+                + Add Badge
+              </Button>
             </AccordionDetails>
           </Accordion>
 
@@ -1671,6 +1899,50 @@ const AddHost = () => {
                     }
                   />
                 </Grid>
+
+                {/* Fourth Row - Response Rate and Regions Hosted */}
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Response Rate (%)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="responseRate"
+                    type="number"
+                    placeholder="0"
+                    value={formData.responseRate}
+                    onChange={(e) =>
+                      handleChange("responseRate", e.target.value)
+                    }
+                    inputProps={{ min: 0, max: 100, step: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Regions Hosted (comma separated)
+                  </Typography>
+                  <TextField
+                    sx={inputStyle}
+                    size="small"
+                    name="regionsHosted"
+                    placeholder="e.g. Annapurna, Everest, Mustang"
+                    value={
+                      Array.isArray(formData.regionsHosted)
+                        ? formData.regionsHosted.join(", ")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleChange(
+                        "regionsHosted",
+                        e.target.value
+                          .split(",")
+                          .map((r) => r.trim())
+                          .filter(Boolean)
+                      )
+                    }
+                  />
+                </Grid>
               </Grid>
             </AccordionDetails>
           </Accordion>
@@ -1749,7 +2021,8 @@ const AddHost = () => {
             </AccordionDetails>
           </Accordion>
 
-          {/* Social Media Section */}
+          {/* Social Media Section — disabled per request (P3). Code kept, not rendered. */}
+          {false && (
           <Accordion sx={{ mb: 2, ...accordionStyle }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography
@@ -1823,6 +2096,7 @@ const AddHost = () => {
               </Grid>
             </AccordionDetails>
           </Accordion>
+          )}
 
           {/* Document Uploads Section */}
           <Accordion sx={{ mb: 2, ...accordionStyle }}>

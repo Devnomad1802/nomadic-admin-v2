@@ -16,10 +16,10 @@ const ReviewApi = api.injectEndpoints({
 
     // --------- update Rewies ------------
     updateReview: builder.mutation({
-      query: ({ Name, Title, Review, rating, Job, _id }) => ({
+      query: ({ Name, Title, Review, rating, Job, _id, source, location, tripName }) => ({
         url: "/updateReview",
         method: "POST",
-        body: { Name, Title, Review, rating, Job, _id },
+        body: { Name, Title, Review, rating, Job, _id, source, location, tripName },
       }),
       invalidatesTags: ["Reviews"],
     }),
@@ -40,8 +40,31 @@ const ReviewApi = api.injectEndpoints({
       invalidatesTags: ["Reviews"],
     }),
 
+    // ---------------- Host reviews (entity-scoped, never brand) ----------------
+    getReviewsByHostId: builder.query({
+      query: (hostId) => ({
+        url: `/getAllReviewsByHostId/${hostId}`,
+        method: "GET",
+      }),
+      providesTags: ["HostReviews"],
+    }),
 
+    addHostReview: builder.mutation({
+      query: (body) => ({
+        url: "/addUserReview",
+        method: "POST",
+        body, // { hostId, name, rating, review, location, tripName, profileImage, source }
+      }),
+      invalidatesTags: ["HostReviews"],
+    }),
 
+    deleteHostReview: builder.mutation({
+      query: (id) => ({
+        url: `/deleteUserReview/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["HostReviews"],
+    }),
   }),
 });
 
@@ -50,5 +73,7 @@ export const {
   useGetAllReviewsQuery,
   useDeleteReviewMutation,
   useUpdateReviewMutation,
-
+  useGetReviewsByHostIdQuery,
+  useAddHostReviewMutation,
+  useDeleteHostReviewMutation,
 } = ReviewApi;
