@@ -26,8 +26,16 @@ import { useGetHostByIdQuery } from "../../Redux/services/hostsApi";
 const inputStyle = {
   backgroundColor: "#fff",
   borderRadius: "8px",
+  // Force readable dark text on the white field — inputs, textareas and the
+  // Source select were inheriting a near-white theme colour (invisible).
+  "& .MuiInputBase-input, & .MuiOutlinedInput-input, & textarea, & .MuiSelect-select":
+    { color: "#1F2937", WebkitTextFillColor: "#1F2937" },
+  "& .MuiInputBase-input::placeholder, & textarea::placeholder":
+    { color: "#9CA3AF", opacity: 1 },
+  "& .MuiSvgIcon-root": { color: "#6B7280" }, // select caret
   "& .MuiOutlinedInput-root": {
     borderRadius: "8px",
+    color: "#1F2937",
     "& fieldset": { borderColor: "#E7E7E7" },
     "&:hover fieldset": { borderColor: "#EC3F18" },
     "&.Mui-focused fieldset": { borderColor: "#EC3F18" },
