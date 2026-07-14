@@ -383,6 +383,7 @@ const AddTrip = () => {
     nights: 0,
     date: "",
     firstBookingPrice: "",
+    partialPaymentEnabled: true,
     price: 0,
     strikePrice: 0,
     commissionRate: 0,
@@ -777,6 +778,20 @@ const AddTrip = () => {
       return;
     }
 
+    // Partial payment: booking amount must be > 0 and < the full price.
+    if (formData.partialPaymentEnabled !== false) {
+      const bookAmt = Number(formData.firstBookingPrice) || 0;
+      const full = Number(formData.price) || 0;
+      if (bookAmt <= 0) {
+        showToast("Booking Amount must be greater than 0 when Partial Payment is enabled.", "error");
+        return;
+      }
+      if (full > 0 && bookAmt >= full) {
+        showToast("Booking Amount must be lower than the full Price.", "error");
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       // Create a new FormData object to append form data and images
@@ -791,7 +806,8 @@ const AddTrip = () => {
       formDataToSend.append("nights", formData.nights);
       formDataToSend.append("days", formData.days);
       formDataToSend.append("date", formData.date);
-      formDataToSend.append("firstBookingPrice", formData.firstBookingPrice);
+      formDataToSend.append("firstBookingPrice", formData.partialPaymentEnabled === false ? "" : formData.firstBookingPrice);
+      formDataToSend.append("partialPaymentEnabled", formData.partialPaymentEnabled === false ? "false" : "true");
       formDataToSend.append("location", formData.location);
       formDataToSend.append("pickUp", formData.pickUp);
       formDataToSend.append("dropOff", formData.dropOff);
@@ -1030,8 +1046,9 @@ const AddTrip = () => {
                         name={name}
                         placeholder={plach}
                         type={type}
-                        required={required}
-                        value={formData[name] || ""}
+                        required={required && !(name === "firstBookingPrice" && formData.partialPaymentEnabled === false)}
+                        disabled={name === "firstBookingPrice" && formData.partialPaymentEnabled === false}
+                        value={name === "firstBookingPrice" && formData.partialPaymentEnabled === false ? "" : (formData[name] || "")}
                         onChange={(e) => handleChange(name, e.target.value)}
                         inputProps={name === "tripOff" ? { min: 1, step: 1 } : {}}
                       />
@@ -1040,6 +1057,36 @@ const AddTrip = () => {
                 </Grid>
               );
             })}
+
+            {/* Partial Payment toggle — controls firstBookingPrice above */}
+            <Grid item xs={12} sx={{ width: "100%", mt: 3 }}>
+              <Box sx={{ width: "100%" }}>
+                <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                  Partial Payment
+                </Typography>
+                <Box sx={{ display: "flex", gap: 3 }}>
+                  {[
+                    { label: "Enabled", val: true },
+                    { label: "Disabled", val: false },
+                  ].map((o) => (
+                    <label key={o.label} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "#3C3228" }}>
+                      <input
+                        type="radio"
+                        name="partialPaymentEnabled"
+                        checked={(formData.partialPaymentEnabled !== false) === o.val}
+                        onChange={() => handleChange("partialPaymentEnabled", o.val)}
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </Box>
+                <Typography sx={{ color: "#9A9080", fontSize: 12, mt: 0.5, textAlign: "left" }}>
+                  {formData.partialPaymentEnabled === false
+                    ? "Customers pay the full amount. Booking amount is ignored."
+                    : "Customers may pay the Booking Amount (First Booking Price) now; balance is due 15 days before departure."}
+                </Typography>
+              </Box>
+            </Grid>
           </Grid>
         </Container>
 

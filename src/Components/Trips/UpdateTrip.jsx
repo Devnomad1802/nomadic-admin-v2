@@ -374,6 +374,11 @@ const UpdateTrip = ({ tripData }) => {
         enableEnquire: tripData?.enableEnquire || false,
         Trending: tripData?.Trending || false,
         firstBookingPrice: tripData?.firstBookingPrice || "",
+        // Legacy trips: undefined → derive from a positive booking price.
+        partialPaymentEnabled:
+          tripData?.partialPaymentEnabled === undefined
+            ? Number(tripData?.firstBookingPrice) > 0
+            : !!tripData.partialPaymentEnabled,
         gallaryImages: [], // Empty array - for new images only
         existingGalleryImages: safeJsonParse(tripData?.gallaryImages, []),
         itenarryImg: tripData?.itenarryImg || "",
@@ -535,6 +540,7 @@ const UpdateTrip = ({ tripData }) => {
     nights: null,
     date: "",
     firstBookingPrice: "",
+    partialPaymentEnabled: true,
     price: null,
     strikePrice: "",
     commissionRate: "",
@@ -1078,6 +1084,20 @@ const UpdateTrip = ({ tripData }) => {
       return;
     }
 
+    // Partial payment: booking amount must be > 0 and < the full price.
+    if (formData.partialPaymentEnabled !== false) {
+      const bookAmt = Number(formData.firstBookingPrice) || 0;
+      const full = Number(formData.price) || 0;
+      if (bookAmt <= 0) {
+        showToast("Booking Amount must be greater than 0 when Partial Payment is enabled.", "error");
+        return;
+      }
+      if (full > 0 && bookAmt >= full) {
+        showToast("Booking Amount must be lower than the full Price.", "error");
+        return;
+      }
+    }
+
     console.log("=== FORM SUBMISSION STARTED ===");
     console.log("Form data:", formData);
     console.log("tripData:", tripData);
@@ -1143,7 +1163,8 @@ const UpdateTrip = ({ tripData }) => {
       formDataToSend.append('commissionRate', formData?.commissionRate || '');
       formDataToSend.append('nights', formData?.nights || '');
       formDataToSend.append('days', formData?.days || '');
-      formDataToSend.append('firstBookingPrice', formData?.firstBookingPrice || '');
+      formDataToSend.append('firstBookingPrice', formData.partialPaymentEnabled === false ? '' : (formData?.firstBookingPrice || ''));
+      formDataToSend.append('partialPaymentEnabled', formData.partialPaymentEnabled === false ? 'false' : 'true');
       formDataToSend.append('location', formData?.location || '');
       formDataToSend.append('pickUp', formData?.pickUp || '');
       formDataToSend.append('dropOff', formData?.dropOff || '');
@@ -1445,7 +1466,8 @@ const UpdateTrip = ({ tripData }) => {
                         size="small"
                         name={name}
                         placeholder={plach}
-                        value={formData[name] || ""}
+                        disabled={name === "firstBookingPrice" && formData.partialPaymentEnabled === false}
+                        value={name === "firstBookingPrice" && formData.partialPaymentEnabled === false ? "" : (formData[name] || "")}
                         type={type}
                         onChange={(e) => handleChange(name, e.target.value)}
                         inputProps={name === "tripOff" ? { min: 1, step: 1 } : {}}
@@ -1455,6 +1477,36 @@ const UpdateTrip = ({ tripData }) => {
                 </Grid>
               );
             })}
+
+            {/* Partial Payment toggle — controls firstBookingPrice above */}
+            <Grid item xs={12} sx={{ width: "100%", mt: 3 }}>
+              <Box sx={{ width: "100%" }}>
+                <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                  Partial Payment
+                </Typography>
+                <Box sx={{ display: "flex", gap: 3 }}>
+                  {[
+                    { label: "Enabled", val: true },
+                    { label: "Disabled", val: false },
+                  ].map((o) => (
+                    <label key={o.label} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "#3C3228" }}>
+                      <input
+                        type="radio"
+                        name="partialPaymentEnabled"
+                        checked={(formData.partialPaymentEnabled !== false) === o.val}
+                        onChange={() => handleChange("partialPaymentEnabled", o.val)}
+                      />
+                      {o.label}
+                    </label>
+                  ))}
+                </Box>
+                <Typography sx={{ color: "#9A9080", fontSize: 12, mt: 0.5, textAlign: "left" }}>
+                  {formData.partialPaymentEnabled === false
+                    ? "Customers pay the full amount. Booking amount is ignored."
+                    : "Customers may pay the Booking Amount (First Booking Price) now; balance is due 15 days before departure."}
+                </Typography>
+              </Box>
+            </Grid>
           </Grid>
         </Container>
 
