@@ -17,6 +17,8 @@ import {
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArticleIcon from "@mui/icons-material/Article";
+import DownloadIcon from "@mui/icons-material/Download";
+import { downloadTripDocx } from "../../utils/tripDocx";
 import MenuItem from "@mui/material/MenuItem";
 import BookingModal from "../Booking/BookingModal";
 import { useNavigate } from "react-router-dom";
@@ -115,8 +117,13 @@ const TripBookings = () => {
     // }
   };
 
+  const downloadDocx = async (id, row) => {
+    try { await downloadTripDocx(row); } catch (e) { console.error("docx export failed:", e); }
+  };
+
   const iconArray = [
     { icon: <ArticleIcon />, name: "View", fun: viewApplication },
+    { icon: <DownloadIcon sx={{ color: "#CD482A" }} />, name: "Download Word", fun: downloadDocx },
     {
       icon: <DeleteIcon sx={{ color: "red" }} />,
       name: "Delete",

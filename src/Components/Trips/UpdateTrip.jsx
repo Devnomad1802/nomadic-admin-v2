@@ -1014,8 +1014,10 @@ const UpdateTrip = ({ tripData }) => {
       }
     }
 
-    // Trip Details validation - conditional based on type
-    if (formData.type === "Customized") {
+    // Trip Details validation — batch fields apply ONLY to Batch trips.
+    // Customized trips are inquiry-based: no fixed dates, no batch checks.
+    const isBatchTrip = formData.type !== "Customized";
+    if (isBatchTrip) {
       if (
         !formData.numberOfDays ||
         formData.numberOfDays.length === 0 ||
@@ -1026,36 +1028,46 @@ const UpdateTrip = ({ tripData }) => {
           message: "Number of Days is required",
         });
       }
-    }
-
-    if (
-      !formData.numberOfSeats ||
-      formData.numberOfSeats.length === 0 ||
-      !formData.numberOfSeats[0]?.batchSeats
-    ) {
-      validationErrors.push({
-        section: "tripDetails",
-        message: "Number of Seats is required",
-      });
-    }
-    if (
-      !formData.selectDate ||
-      formData.selectDate.length === 0 ||
-      !formData.selectDate[0]?.BatchDate
-    ) {
-      validationErrors.push({
-        section: "tripDetails",
-        message: "Select Date is required",
-      });
-    }
-    if (
-      !formData.endSelectDate ||
-      formData.endSelectDate.length === 0 ||
-      !formData.endSelectDate[0]?.EndBatchDate
-    ) {
-      validationErrors.push({
-        section: "tripDetails",
-        message: "End Date is required",
+      if (
+        !formData.numberOfSeats ||
+        formData.numberOfSeats.length === 0 ||
+        !formData.numberOfSeats[0]?.batchSeats
+      ) {
+        validationErrors.push({
+          section: "tripDetails",
+          message: "Number of Seats is required",
+        });
+      }
+      if (
+        !formData.selectDate ||
+        formData.selectDate.length === 0 ||
+        !formData.selectDate[0]?.BatchDate
+      ) {
+        validationErrors.push({
+          section: "tripDetails",
+          message: "Select Date is required",
+        });
+      }
+      if (
+        !formData.endSelectDate ||
+        formData.endSelectDate.length === 0 ||
+        !formData.endSelectDate[0]?.EndBatchDate
+      ) {
+        validationErrors.push({
+          section: "tripDetails",
+          message: "End Date is required",
+        });
+      }
+      // Batch sanity: end date must not precede its start date.
+      (formData.selectDate || []).forEach((s, i) => {
+        const start = s?.BatchDate;
+        const end = formData.endSelectDate?.[i]?.EndBatchDate;
+        if (start && end && new Date(end) < new Date(start)) {
+          validationErrors.push({
+            section: "tripDetails",
+            message: `Batch ${i + 1}: end date is before its start date`,
+          });
+        }
       });
     }
 
@@ -1085,7 +1097,7 @@ const UpdateTrip = ({ tripData }) => {
     }
 
     // Partial payment: booking amount must be > 0 and < the full price.
-    if (formData.partialPaymentEnabled !== false) {
+    if (isBatchTrip && formData.partialPaymentEnabled !== false) {
       const bookAmt = Number(formData.firstBookingPrice) || 0;
       const full = Number(formData.price) || 0;
       if (bookAmt <= 0) {
@@ -1277,7 +1289,10 @@ const UpdateTrip = ({ tripData }) => {
       console.error("Error status:", error?.status);
       console.error("====================");
 
-      const errorMessage = error?.data?.error || error?.data?.message || error?.message || "Failed to update trip";
+      const errorMessage =
+        error?.status === 401
+          ? "Your session has expired — please log in again."
+          : error?.data?.error || error?.data?.message || error?.message || "Failed to update trip";
       showToast(errorMessage, "error");
     }
   };

@@ -744,18 +744,30 @@ const AddTrip = () => {
       validationErrors.push({ section: "basicDetails", message: "Card Image is required" });
     }
 
-    // Trip Details validation
-    if (!formData.numberOfDays || formData.numberOfDays.length === 0 || !formData.numberOfDays[0]?.selectDays) {
-      validationErrors.push({ section: "tripDetails", message: "Number of Days is required" });
-    }
-    if (!formData.numberOfSeats || formData.numberOfSeats.length === 0 || !formData.numberOfSeats[0]?.batchSeats) {
-      validationErrors.push({ section: "tripDetails", message: "Number of Seats is required" });
-    }
-    if (!formData.selectDate || formData.selectDate.length === 0 || !formData.selectDate[0]?.BatchDate) {
-      validationErrors.push({ section: "tripDetails", message: "Start Date is required" });
-    }
-    if (!formData.endSelectDate || formData.endSelectDate.length === 0 || !formData.endSelectDate[0]?.EndBatchDate) {
-      validationErrors.push({ section: "tripDetails", message: "End Date is required" });
+    // Trip Details validation — batch fields apply ONLY to Batch trips.
+    // Customized trips are inquiry-based: no fixed dates, no batch checks.
+    const isBatchTrip = formData.type !== "Customized";
+    if (isBatchTrip) {
+      if (!formData.numberOfDays || formData.numberOfDays.length === 0 || !formData.numberOfDays[0]?.selectDays) {
+        validationErrors.push({ section: "tripDetails", message: "Number of Days is required" });
+      }
+      if (!formData.numberOfSeats || formData.numberOfSeats.length === 0 || !formData.numberOfSeats[0]?.batchSeats) {
+        validationErrors.push({ section: "tripDetails", message: "Number of Seats is required" });
+      }
+      if (!formData.selectDate || formData.selectDate.length === 0 || !formData.selectDate[0]?.BatchDate) {
+        validationErrors.push({ section: "tripDetails", message: "Start Date is required" });
+      }
+      if (!formData.endSelectDate || formData.endSelectDate.length === 0 || !formData.endSelectDate[0]?.EndBatchDate) {
+        validationErrors.push({ section: "tripDetails", message: "End Date is required" });
+      }
+      // Batch sanity: end date must not precede its start date.
+      (formData.selectDate || []).forEach((s, i) => {
+        const start = s?.BatchDate;
+        const end = formData.endSelectDate?.[i]?.EndBatchDate;
+        if (start && end && new Date(end) < new Date(start)) {
+          validationErrors.push({ section: "tripDetails", message: `Batch ${i + 1}: end date is before its start date` });
+        }
+      });
     }
 
     // If there are validation errors, show them and open the appropriate accordion
@@ -779,7 +791,8 @@ const AddTrip = () => {
     }
 
     // Partial payment: booking amount must be > 0 and < the full price.
-    if (formData.partialPaymentEnabled !== false) {
+    // Customized trips are inquiry-based (no direct booking), so skip.
+    if (isBatchTrip && formData.partialPaymentEnabled !== false) {
       const bookAmt = Number(formData.firstBookingPrice) || 0;
       const full = Number(formData.price) || 0;
       if (bookAmt <= 0) {
@@ -813,19 +826,14 @@ const AddTrip = () => {
       formDataToSend.append("dropOff", formData.dropOff);
       formDataToSend.append("overview", formData.overview);
       formDataToSend.append("type", formData.type);
-      formDataToSend.append(
-        "numberOfDays",
-        JSON.stringify(formData?.numberOfDays)
-      );
-      formDataToSend.append(
-        "numberOfSeats",
-        JSON.stringify(formData?.numberOfSeats)
-      );
-      formDataToSend.append("selectDate", JSON.stringify(formData.selectDate));
-      formDataToSend.append(
-        "endSelectDate",
-        JSON.stringify(formData?.endSelectDate)
-      );
+      // Customized trips carry no batch data — send clean empty arrays so
+      // half-filled hidden batch rows never reach the API.
+      const cleanBatch = (arr, key) =>
+        isBatchTrip ? JSON.stringify((arr || []).filter((x) => x?.[key])) : "[]";
+      formDataToSend.append("numberOfDays", cleanBatch(formData?.numberOfDays, "selectDays"));
+      formDataToSend.append("numberOfSeats", cleanBatch(formData?.numberOfSeats, "batchSeats"));
+      formDataToSend.append("selectDate", cleanBatch(formData?.selectDate, "BatchDate"));
+      formDataToSend.append("endSelectDate", cleanBatch(formData?.endSelectDate, "EndBatchDate"));
       formDataToSend.append("Inclusion", formData.Inclusion);
       formDataToSend.append("Exclusion", formData.Exclusion);
       formDataToSend.append("ThingsToCarry", formData.ThingsToCarry);
@@ -890,7 +898,13 @@ const AddTrip = () => {
       showToast(response?.message, "success");
     } catch (error) {
       setLoading(false);
-      showToast(error?.data?.error, "error");
+      const msg =
+        error?.status === 401
+          ? "Your session has expired — please log in again."
+          : error?.data?.error || error?.data?.message ||
+            (typeof error?.data === "string" ? error.data : "") ||
+            "Could not save the trip. Please try again.";
+      showToast(msg, "error");
       console.error("Error", error);
     }
   };
