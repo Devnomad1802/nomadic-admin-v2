@@ -7,6 +7,8 @@ import Box from "@mui/material/Box";
 import { styled } from "@mui/material/styles";
 import { tabsClasses } from "@mui/material/Tabs";
 import UpdateTrip from "../Components/Trips/UpdateTrip";
+import { useGetTripsQuery } from "../Redux/services/TripApis";
+import { downloadTripDocx } from "../utils/tripDocx";
 import ButanTrip from "../Components/Trips/ButanTrip";
 import { useLocation } from "react-router-dom";
 
@@ -87,6 +89,19 @@ export default function TripsTabs() {
     setValue(newValue);
   };
 
+  // Word export uses the LATEST saved backend copy of the trip, not the
+  // possibly-stale navigation state.
+  const { data: tripsRes } = useGetTripsQuery();
+  const freshTrip =
+    (tripsRes?.data || []).find((t) => `${t?._id}` === `${tripData?._id}`) || tripData;
+  const [downloading, setDownloading] = React.useState(false);
+  const onDownloadDocx = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try { await downloadTripDocx(freshTrip); } catch (e) { console.error("docx export failed:", e); }
+    setDownloading(false);
+  };
+
   // Check if tripData is missing
   if (!tripData || !tripData._id) {
     return (
@@ -140,6 +155,14 @@ export default function TripsTabs() {
           <AntTab label="Bookings" {...a11yProps(0)} />
           <AntTab label="Trip Details" {...a11yProps(1)} />
         </Tabs>
+        <button
+          type="button"
+          onClick={onDownloadDocx}
+          disabled={downloading}
+          style={{ marginLeft: "auto", alignSelf: "center", padding: "9px 16px", fontWeight: 700, fontSize: 13, color: "#fff", background: "#CD482A", border: "none", borderRadius: 9, cursor: "pointer", whiteSpace: "nowrap" }}
+        >
+          {downloading ? "Preparing…" : "⬇ Download Word"}
+        </button>
       </Box>
       <Box
         // className="scroolbox"

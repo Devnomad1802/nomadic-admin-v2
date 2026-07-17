@@ -21,15 +21,29 @@ export const api = createApi({
     "payout",
     "hostApplications",
   ],
-  baseQuery: fetchBaseQuery({
-    baseUrl,
-    prepareHeaders: (headers) => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        headers.set("Authorization", token);
+  baseQuery: async (args, apiCtx, extraOptions) => {
+    const raw = fetchBaseQuery({
+      baseUrl,
+      prepareHeaders: (headers) => {
+        const token = localStorage.getItem("token");
+        if (token) {
+          // Server (passport-jwt) expects "Bearer <jwt>"; stored tokens
+          // already include the prefix, but normalise defensively.
+          headers.set("Authorization", token.startsWith("Bearer ") ? token : `Bearer ${token}`);
+        }
+        return headers;
+      },
+    });
+    const result = await raw(args, apiCtx, extraOptions);
+    // Expired/invalid JWT: writes fail silently otherwise. Clear the stale
+    // token and send the admin back to login instead of dead-ending forms.
+    if (result?.error?.status === 401 && localStorage.getItem("token")) {
+      localStorage.removeItem("token");
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
       }
-      return headers;
-    },
-  }),
+    }
+    return result;
+  },
   endpoints: () => ({}),
 });
