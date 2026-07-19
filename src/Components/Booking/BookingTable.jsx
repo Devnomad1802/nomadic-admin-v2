@@ -1,3 +1,4 @@
+import { downloadInvoice } from "../../utils/invoiceDownload";
 import { useEffect, useState } from "react";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -890,6 +891,16 @@ const BookingTable = () => {
                         {/* {row.bookingdate} */}
                         Completed
                       </Typography>
+                      {["firstPayment", "fullPayment"].includes(row?.paymentStatus) && (
+                        <button
+                          type="button"
+                          title="Download invoice"
+                          onClick={() => downloadInvoice(row?._id)}
+                          style={{ marginTop: 6, padding: "5px 10px", fontSize: 12, fontWeight: 700, color: "#CD482A", background: "transparent", border: "1.5px solid #CD482A", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}
+                        >
+                          ⬇ Invoice
+                        </button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
