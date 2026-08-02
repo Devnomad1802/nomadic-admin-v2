@@ -153,6 +153,23 @@ const AddHost = () => {
     seoTitle: "",
     seoSlug: "",
     metaDescription: "",
+
+    // 13. Host Onboarding (self-serve) — additive optional fields
+    displayName: "",
+    country: "",
+    whyHost: "",
+    uniqueValue: "",
+    businessType: "",
+    altPhone: "",
+    emergencyContact: { name: "", role: "", phone: "" },
+    serviceQuality: { groupSize: "", duration: "", difficulty: "", ageGroups: [], medical: "" },
+    bankAccounts: [],
+    // Onboarding documents (files or {url,isUrl})
+    idProof: null,
+    certificates: [],
+    previousCertificates: [],
+    insurance: [],
+    previousInsurance: [],
   });
 
   const handleChange = (name, value) => {
@@ -371,6 +388,34 @@ const AddHost = () => {
         seoTitle: hostData.seoTitle || "",
         seoSlug: hostData.seoSlug || "",
         metaDescription: hostData.metaDescription || "",
+
+        // Host Onboarding (self-serve) fields
+        displayName: hostData.displayName || "",
+        country: hostData.country || "",
+        whyHost: hostData.whyHost || "",
+        uniqueValue: hostData.uniqueValue || "",
+        businessType: hostData.businessType || "",
+        altPhone: hostData.altPhone || "",
+        emergencyContact: {
+          name: hostData.emergencyContact?.name || "",
+          role: hostData.emergencyContact?.role || "",
+          phone: hostData.emergencyContact?.phone || "",
+        },
+        serviceQuality: {
+          groupSize: hostData.serviceQuality?.groupSize || "",
+          duration: hostData.serviceQuality?.duration || "",
+          difficulty: hostData.serviceQuality?.difficulty || "",
+          ageGroups: hostData.serviceQuality?.ageGroups || [],
+          medical: hostData.serviceQuality?.medical || "",
+        },
+        bankAccounts: hostData.bankAccounts || [],
+        idProof: hostData.documents?.idProof
+          ? { url: hostData.documents.idProof, isUrl: true }
+          : null,
+        certificates: [],
+        previousCertificates: hostData.documents?.certificates || [],
+        insurance: [],
+        previousInsurance: hostData.documents?.insurance || [],
       });
 
       console.log("Form Data Set Successfully");
@@ -392,7 +437,8 @@ const AddHost = () => {
       try {
         const {
           brandingLogo, coverImage, gallery, panCard, gstCertificate,
-          bankPassbook, businessLicense, previousGallery, ...serialisable
+          bankPassbook, businessLicense, previousGallery,
+          idProof, certificates, insurance, ...serialisable
         } = formData;
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), data: serialisable }));
       } catch { /* quota / serialise errors ignored */ }
@@ -542,6 +588,23 @@ const AddHost = () => {
     formDataToSend.append("seoTitle", formData.seoTitle);
     formDataToSend.append("seoSlug", formData.seoSlug);
     formDataToSend.append("metaDescription", formData.metaDescription);
+
+    // Host Onboarding (self-serve) fields
+    formDataToSend.append("displayName", formData.displayName || "");
+    formDataToSend.append("country", formData.country || "");
+    formDataToSend.append("whyHost", formData.whyHost || "");
+    formDataToSend.append("uniqueValue", formData.uniqueValue || "");
+    formDataToSend.append("businessType", formData.businessType || "");
+    formDataToSend.append("altPhone", formData.altPhone || "");
+    formDataToSend.append("emergencyContact", JSON.stringify(formData.emergencyContact || {}));
+    formDataToSend.append("serviceQuality", JSON.stringify(formData.serviceQuality || {}));
+    formDataToSend.append("bankAccounts", JSON.stringify(formData.bankAccounts || []));
+    // Onboarding documents
+    if (formData.idProof && !formData.idProof.isUrl) {
+      formDataToSend.append("idProof", formData.idProof);
+    }
+    (formData.certificates || []).forEach((f) => formDataToSend.append("certificates", f));
+    (formData.insurance || []).forEach((f) => formDataToSend.append("insurance", f));
 
     // Handle gallery images - send previous URLs and new files
     const previousGalleryUrls = formData.previousGallery; // These are already URLs
@@ -2351,6 +2414,157 @@ const AddHost = () => {
                         handleChange("businessLicense", e.target.files[0])
                       }
                     />
+                  </Button>
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Host Onboarding (self-serve) Section — populated when a host
+              completes the onboarding portal; all fields optional/editable. */}
+          <Accordion sx={{ mb: 2, ...accordionStyle }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography
+                sx={{ fontSize: "18px", fontWeight: 600, color: "#393938" }}
+              >
+                Host Onboarding Details
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Display Name</Typography>
+                  <TextField sx={inputStyle} size="small" placeholder="Public-facing name"
+                    value={formData.displayName}
+                    onChange={(e) => handleChange("displayName", e.target.value)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Country</Typography>
+                  <TextField sx={inputStyle} size="small" placeholder="Country"
+                    value={formData.country}
+                    onChange={(e) => handleChange("country", e.target.value)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Business Type</Typography>
+                  <TextField sx={inputStyle} size="small" placeholder="Individual / Pvt Ltd / LLP"
+                    value={formData.businessType}
+                    onChange={(e) => handleChange("businessType", e.target.value)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Why they host</Typography>
+                  <TextField sx={inputStyle} size="small" multiline placeholder="Motivation"
+                    value={formData.whyHost}
+                    onChange={(e) => handleChange("whyHost", e.target.value)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>What makes them unique</Typography>
+                  <TextField sx={inputStyle} size="small" multiline placeholder="Unique value"
+                    value={formData.uniqueValue}
+                    onChange={(e) => handleChange("uniqueValue", e.target.value)} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Alternate Phone</Typography>
+                  <TextField sx={inputStyle} size="small" placeholder="Alternate / emergency phone"
+                    value={formData.altPhone}
+                    onChange={(e) => handleChange("altPhone", e.target.value)} />
+                </Grid>
+
+                {/* Emergency contact */}
+                <Grid item xs={12}>
+                  <Typography sx={{ fontWeight: 600, color: "#393938", mt: 1 }}>Emergency Contact</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Contact Name</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.emergencyContact.name}
+                    onChange={(e) => handleChange("emergencyContact", { ...formData.emergencyContact, name: e.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Role</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.emergencyContact.role}
+                    onChange={(e) => handleChange("emergencyContact", { ...formData.emergencyContact, role: e.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Emergency preparedness / phone</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.emergencyContact.phone}
+                    onChange={(e) => handleChange("emergencyContact", { ...formData.emergencyContact, phone: e.target.value })} />
+                </Grid>
+
+                {/* Service quality */}
+                <Grid item xs={12}>
+                  <Typography sx={{ fontWeight: 600, color: "#393938", mt: 1 }}>Service Quality</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Max Group Size</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.serviceQuality.groupSize}
+                    onChange={(e) => handleChange("serviceQuality", { ...formData.serviceQuality, groupSize: e.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Typical Duration</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.serviceQuality.duration}
+                    onChange={(e) => handleChange("serviceQuality", { ...formData.serviceQuality, duration: e.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Difficulty Levels</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.serviceQuality.difficulty}
+                    onChange={(e) => handleChange("serviceQuality", { ...formData.serviceQuality, difficulty: e.target.value })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>Age Groups (comma-separated)</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={(formData.serviceQuality.ageGroups || []).join(", ")}
+                    onChange={(e) => handleChange("serviceQuality", { ...formData.serviceQuality, ageGroups: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={6}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>First-aid on trips?</Typography>
+                  <TextField sx={inputStyle} size="small"
+                    value={formData.serviceQuality.medical}
+                    onChange={(e) => handleChange("serviceQuality", { ...formData.serviceQuality, medical: e.target.value })} />
+                </Grid>
+
+                {/* Extra onboarding documents */}
+                <Grid item xs={12}>
+                  <Typography sx={{ fontWeight: 600, color: "#393938", mt: 1 }}>Additional Documents</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    ID Proof (Aadhaar / Passport)
+                    {formData.idProof?.isUrl ? " — uploaded ✓" : ""}
+                  </Typography>
+                  <Button component="label" variant="outlined" size="small"
+                    sx={{ border: "1px solid #E7E7E7", color: "#737373", borderRadius: "8px", textTransform: "none" }}>
+                    {formData.idProof && !formData.idProof.isUrl ? formData.idProof.name : "Upload"}
+                    <input type="file" hidden accept="image/*,application/pdf"
+                      onChange={(e) => handleChange("idProof", e.target.files[0])} />
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Certifications & Licenses
+                    {formData.previousCertificates?.length ? ` (${formData.previousCertificates.length} on file)` : ""}
+                  </Typography>
+                  <Button component="label" variant="outlined" size="small"
+                    sx={{ border: "1px solid #E7E7E7", color: "#737373", borderRadius: "8px", textTransform: "none" }}>
+                    {formData.certificates?.length ? `${formData.certificates.length} selected` : "Upload (replaces)"}
+                    <input type="file" hidden multiple accept="image/*,application/pdf"
+                      onChange={(e) => handleChange("certificates", Array.from(e.target.files))} />
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Typography sx={{ color: "#737373", mb: 1 }}>
+                    Insurance Documents
+                    {formData.previousInsurance?.length ? ` (${formData.previousInsurance.length} on file)` : ""}
+                  </Typography>
+                  <Button component="label" variant="outlined" size="small"
+                    sx={{ border: "1px solid #E7E7E7", color: "#737373", borderRadius: "8px", textTransform: "none" }}>
+                    {formData.insurance?.length ? `${formData.insurance.length} selected` : "Upload (replaces)"}
+                    <input type="file" hidden multiple accept="image/*,application/pdf"
+                      onChange={(e) => handleChange("insurance", Array.from(e.target.files))} />
                   </Button>
                 </Grid>
               </Grid>
