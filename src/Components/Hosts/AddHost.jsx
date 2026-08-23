@@ -72,6 +72,9 @@ const AddHost = () => {
   // Accordion state for auto-opening on validation errors
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
+  // Instagram Reels input (draft URL being added) + validation message.
+  const [reelInput, setReelInput] = useState("");
+  const [reelError, setReelError] = useState("");
   const [formData, setFormData] = useState({
     // 1. Basic Information
     hostName: "",
@@ -106,6 +109,9 @@ const AddHost = () => {
     achievements: [],
     gallery: [],
     previousGallery: [],
+
+    // Instagram Reels gallery — array of public reel URL strings (ordered).
+    reels: [],
 
     // 6. Specialties & Expertise
     specialties: [],
@@ -208,6 +214,59 @@ const AddHost = () => {
       ...prevState,
       previousGallery: prevState.previousGallery.filter((_, i) => i !== index),
     }));
+  };
+
+  // ── Instagram Reels gallery ──
+  // Client-side validation mirrors the server (utils/instagramReels.js): only
+  // public reel/p/tv URLs, normalized to a canonical form, no duplicates.
+  const normalizeReelUrl = (raw) => {
+    if (!raw || typeof raw !== "string") return null;
+    const m = raw
+      .trim()
+      .match(
+        /^https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)\/?/i
+      );
+    if (!m) return null;
+    const type = m[1].toLowerCase() === "reels" ? "reel" : m[1].toLowerCase();
+    return `https://www.instagram.com/${type}/${m[2]}/`;
+  };
+
+  const handleReelAdd = () => {
+    const url = normalizeReelUrl(reelInput);
+    if (!url) {
+      setReelError("Enter a valid public Instagram Reel/post URL.");
+      return;
+    }
+    if ((formData.reels || []).includes(url)) {
+      setReelError("This Reel is already in the gallery.");
+      return;
+    }
+    setFormData((prev) => ({ ...prev, reels: [...(prev.reels || []), url] }));
+    setReelInput("");
+    setReelError("");
+  };
+
+  const handleReelRemove = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      reels: (prev.reels || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleReelEdit = (index) => {
+    const current = (formData.reels || [])[index] || "";
+    setReelInput(current);
+    handleReelRemove(index);
+  };
+
+  const handleReelMove = (index, dir) => {
+    setFormData((prev) => {
+      const reels = [...(prev.reels || [])];
+      const target = index + dir;
+      if (target < 0 || target >= reels.length) return prev;
+      [reels[index], reels[target]] = [reels[target], reels[index]];
+      return { ...prev, reels };
+    });
   };
 
   // Convert a comma-separated string into a trimmed, de-duplicated array for
@@ -337,6 +396,7 @@ const AddHost = () => {
         achievements: hostData.achievements || [],
         gallery: [], // New images will be stored here
         previousGallery: hostData.gallery,
+        reels: Array.isArray(hostData.reels) ? hostData.reels : [],
 
         // Specialties & Expertise
         specialties: hostData.specialties || [],
@@ -541,6 +601,8 @@ const AddHost = () => {
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
     formDataToSend.append("languages", JSON.stringify(formData.languages));
     formDataToSend.append("faqs", JSON.stringify(formData.faqs));
+    // Instagram Reels — JSON array of public URLs (server re-validates/dedupes).
+    formDataToSend.append("reels", JSON.stringify(formData.reels || []));
     formDataToSend.append(
       "verificationBadges",
       JSON.stringify(formData.verificationBadges)
@@ -1548,6 +1610,121 @@ const AddHost = () => {
                       }}
                     />
                   </Button>
+                </Grid>
+
+                {/* Instagram Reels Gallery */}
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 0.5 }}>
+                    Instagram Reels Gallery
+                  </Typography>
+                  <Typography
+                    sx={{ color: "#9b9b9b", fontSize: "12px", mb: 1.5 }}
+                  >
+                    Add Instagram Reel links that you want to display in this
+                    host&apos;s gallery. Videos are loaded from Instagram and are
+                    not uploaded to Nomadic Townies.
+                  </Typography>
+
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                    <TextField
+                      fullWidth
+                      sx={inputStyle}
+                      size="small"
+                      placeholder="https://www.instagram.com/reel/XXXXXXXXXXX/"
+                      value={reelInput}
+                      onChange={(e) => {
+                        setReelInput(e.target.value);
+                        if (reelError) setReelError("");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleReelAdd();
+                        }
+                      }}
+                      error={Boolean(reelError)}
+                      helperText={reelError || ""}
+                    />
+                    <Button
+                      variant="contained"
+                      onClick={handleReelAdd}
+                      sx={{
+                        backgroundColor: "#CF4A2C",
+                        "&:hover": { backgroundColor: "#B83F23" },
+                        textTransform: "none",
+                        whiteSpace: "nowrap",
+                        height: 40,
+                      }}
+                    >
+                      Add Reel
+                    </Button>
+                  </Box>
+
+                  {(formData.reels || []).length > 0 && (
+                    <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+                      {(formData.reels || []).map((url, index) => (
+                        <Box
+                          key={url}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            border: "1px solid #eee",
+                            borderRadius: "8px",
+                            p: 1,
+                            backgroundColor: "#FAFAFA",
+                          }}
+                        >
+                          <Typography sx={{ color: "#9b9b9b", fontSize: "12px", width: 20 }}>
+                            {index + 1}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              flex: 1,
+                              fontSize: "13px",
+                              color: "#393938",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={url}
+                          >
+                            {url}
+                          </Typography>
+                          <Button
+                            size="small"
+                            disabled={index === 0}
+                            onClick={() => handleReelMove(index, -1)}
+                            sx={{ minWidth: 32, color: "#737373" }}
+                          >
+                            ↑
+                          </Button>
+                          <Button
+                            size="small"
+                            disabled={index === (formData.reels || []).length - 1}
+                            onClick={() => handleReelMove(index, 1)}
+                            sx={{ minWidth: 32, color: "#737373" }}
+                          >
+                            ↓
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => handleReelEdit(index)}
+                            sx={{ minWidth: 40, textTransform: "none", color: "#2c6fcf" }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => handleReelRemove(index)}
+                            sx={{ minWidth: 48, textTransform: "none", color: "#CF4A2C" }}
+                          >
+                            Delete
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                 </Grid>
               </Grid>
             </AccordionDetails>
