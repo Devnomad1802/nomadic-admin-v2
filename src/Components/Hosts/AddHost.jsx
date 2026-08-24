@@ -72,8 +72,7 @@ const AddHost = () => {
   // Accordion state for auto-opening on validation errors
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
-  // Instagram Reels input (draft URL being added) + validation message.
-  const [reelInput, setReelInput] = useState("");
+  // Host reels: validation message for the video picker.
   const [reelError, setReelError] = useState("");
   const [formData, setFormData] = useState({
     // 1. Basic Information
@@ -216,47 +215,38 @@ const AddHost = () => {
     }));
   };
 
-  // ── Instagram Reels gallery ──
-  // Client-side validation mirrors the server (utils/instagramReels.js): only
-  // public reel/p/tv URLs, normalized to a canonical form, no duplicates.
-  const normalizeReelUrl = (raw) => {
-    if (!raw || typeof raw !== "string") return null;
-    const m = raw
-      .trim()
-      .match(
-        /^https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)\/?/i
-      );
-    if (!m) return null;
-    const type = m[1].toLowerCase() === "reels" ? "reel" : m[1].toLowerCase();
-    return `https://www.instagram.com/${type}/${m[2]}/`;
-  };
+  // ── Host reels (uploaded 9:16 videos) ──
+  // New reels carry a File (+ object-URL preview); existing reels (edit mode)
+  // carry the stored S3 videoUrl. The gallery serves these from our own CDN and
+  // autoplays them natively — no Instagram player, no redirect.
+  const MAX_REEL_BYTES = 100 * 1024 * 1024; // 100MB per reel (client guard)
 
-  const handleReelAdd = () => {
-    const url = normalizeReelUrl(reelInput);
-    if (!url) {
-      setReelError("Enter a valid public Instagram Reel/post URL.");
-      return;
+  const handleReelAdd = (files) => {
+    const list = Array.from(files || []);
+    const additions = [];
+    for (const file of list) {
+      if (!file.type.startsWith("video/")) {
+        setReelError("Only video files are allowed for reels.");
+        continue;
+      }
+      if (file.size > MAX_REEL_BYTES) {
+        setReelError("Each reel video must be under 100MB.");
+        continue;
+      }
+      additions.push({ file, previewUrl: URL.createObjectURL(file), name: file.name });
     }
-    if ((formData.reels || []).includes(url)) {
-      setReelError("This Reel is already in the gallery.");
-      return;
+    if (additions.length) {
+      setFormData((prev) => ({ ...prev, reels: [...(prev.reels || []), ...additions] }));
+      setReelError("");
     }
-    setFormData((prev) => ({ ...prev, reels: [...(prev.reels || []), url] }));
-    setReelInput("");
-    setReelError("");
   };
 
   const handleReelRemove = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      reels: (prev.reels || []).filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleReelEdit = (index) => {
-    const current = (formData.reels || [])[index] || "";
-    setReelInput(current);
-    handleReelRemove(index);
+    setFormData((prev) => {
+      const removed = (prev.reels || [])[index];
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return { ...prev, reels: (prev.reels || []).filter((_, i) => i !== index) };
+    });
   };
 
   const handleReelMove = (index, dir) => {
@@ -396,7 +386,11 @@ const AddHost = () => {
         achievements: hostData.achievements || [],
         gallery: [], // New images will be stored here
         previousGallery: hostData.gallery,
-        reels: Array.isArray(hostData.reels) ? hostData.reels : [],
+        reels: Array.isArray(hostData.reels)
+          ? hostData.reels
+              .filter((r) => r && r.videoUrl)
+              .map((r) => ({ videoUrl: r.videoUrl, poster: r.poster, sourceUrl: r.sourceUrl }))
+          : [],
 
         // Specialties & Expertise
         specialties: hostData.specialties || [],
@@ -497,7 +491,7 @@ const AddHost = () => {
       try {
         const {
           brandingLogo, coverImage, gallery, panCard, gstCertificate,
-          bankPassbook, businessLicense, previousGallery,
+          bankPassbook, businessLicense, previousGallery, reels,
           idProof, certificates, insurance, ...serialisable
         } = formData;
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), data: serialisable }));
@@ -601,8 +595,22 @@ const AddHost = () => {
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
     formDataToSend.append("languages", JSON.stringify(formData.languages));
     formDataToSend.append("faqs", JSON.stringify(formData.faqs));
-    // Instagram Reels — JSON array of public URLs (server re-validates/dedupes).
-    formDataToSend.append("reels", JSON.stringify(formData.reels || []));
+    // Host reels — new videos go up as files (reelVideos), referenced by index;
+    // existing reels keep their stored S3 videoUrl. Server rebuilds the array.
+    {
+      const reelsMeta = [];
+      const reelFiles = [];
+      (formData.reels || []).forEach((r) => {
+        if (r.file) {
+          reelsMeta.push({ videoIndex: reelFiles.length });
+          reelFiles.push(r.file);
+        } else if (r.videoUrl) {
+          reelsMeta.push({ videoUrl: r.videoUrl, poster: r.poster, sourceUrl: r.sourceUrl });
+        }
+      });
+      formDataToSend.append("reels", JSON.stringify(reelsMeta));
+      reelFiles.forEach((f) => formDataToSend.append("reelVideos", f));
+    }
     formDataToSend.append(
       "verificationBadges",
       JSON.stringify(formData.verificationBadges)
@@ -1612,117 +1620,120 @@ const AddHost = () => {
                   </Button>
                 </Grid>
 
-                {/* Instagram Reels Gallery */}
+                {/* Reels Gallery (uploaded 9:16 videos) */}
                 <Grid item xs={12}>
                   <Typography sx={{ color: "#737373", mb: 0.5 }}>
-                    Instagram Reels Gallery
+                    Reels Gallery
                   </Typography>
                   <Typography
                     sx={{ color: "#9b9b9b", fontSize: "12px", mb: 1.5 }}
                   >
-                    Add Instagram Reel links that you want to display in this
-                    host&apos;s gallery. Videos are loaded from Instagram and are
-                    not uploaded to Nomadic Townies.
+                    Upload short vertical (9:16) videos for this host&apos;s
+                    gallery. They are stored on Nomadic Townies and autoplay
+                    muted in the gallery — no Instagram player or redirect. Max
+                    100MB per video.
                   </Typography>
 
-                  <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                    <TextField
-                      fullWidth
-                      sx={inputStyle}
-                      size="small"
-                      placeholder="https://www.instagram.com/reel/XXXXXXXXXXX/"
-                      value={reelInput}
+                  <Button
+                    component="label"
+                    variant="contained"
+                    sx={{
+                      backgroundColor: "#CF4A2C",
+                      "&:hover": { backgroundColor: "#B83F23" },
+                      textTransform: "none",
+                    }}
+                  >
+                    + Add Reel Video
+                    <input
+                      type="file"
+                      hidden
+                      accept="video/mp4,video/quicktime,video/webm,video/*"
+                      multiple
                       onChange={(e) => {
-                        setReelInput(e.target.value);
-                        if (reelError) setReelError("");
+                        handleReelAdd(e.target.files);
+                        e.target.value = "";
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleReelAdd();
-                        }
-                      }}
-                      error={Boolean(reelError)}
-                      helperText={reelError || ""}
                     />
-                    <Button
-                      variant="contained"
-                      onClick={handleReelAdd}
-                      sx={{
-                        backgroundColor: "#CF4A2C",
-                        "&:hover": { backgroundColor: "#B83F23" },
-                        textTransform: "none",
-                        whiteSpace: "nowrap",
-                        height: 40,
-                      }}
-                    >
-                      Add Reel
-                    </Button>
-                  </Box>
+                  </Button>
+                  {reelError && (
+                    <Typography sx={{ color: "#CF4A2C", fontSize: "12px", mt: 1 }}>
+                      {reelError}
+                    </Typography>
+                  )}
 
                   {(formData.reels || []).length > 0 && (
-                    <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                      {(formData.reels || []).map((url, index) => (
-                        <Box
-                          key={url}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            border: "1px solid #eee",
-                            borderRadius: "8px",
-                            p: 1,
-                            backgroundColor: "#FAFAFA",
-                          }}
-                        >
-                          <Typography sx={{ color: "#9b9b9b", fontSize: "12px", width: 20 }}>
-                            {index + 1}
-                          </Typography>
-                          <Typography
+                    <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 2 }}>
+                      {(formData.reels || []).map((reel, index) => {
+                        const src = reel.previewUrl || reel.videoUrl;
+                        return (
+                          <Box
+                            key={reel.videoUrl || reel.previewUrl || index}
                             sx={{
-                              flex: 1,
-                              fontSize: "13px",
-                              color: "#393938",
+                              width: 132,
+                              border: "1px solid #eee",
+                              borderRadius: "10px",
                               overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
+                              backgroundColor: "#FAFAFA",
                             }}
-                            title={url}
                           >
-                            {url}
-                          </Typography>
-                          <Button
-                            size="small"
-                            disabled={index === 0}
-                            onClick={() => handleReelMove(index, -1)}
-                            sx={{ minWidth: 32, color: "#737373" }}
-                          >
-                            ↑
-                          </Button>
-                          <Button
-                            size="small"
-                            disabled={index === (formData.reels || []).length - 1}
-                            onClick={() => handleReelMove(index, 1)}
-                            sx={{ minWidth: 32, color: "#737373" }}
-                          >
-                            ↓
-                          </Button>
-                          <Button
-                            size="small"
-                            onClick={() => handleReelEdit(index)}
-                            sx={{ minWidth: 40, textTransform: "none", color: "#2c6fcf" }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="small"
-                            onClick={() => handleReelRemove(index)}
-                            sx={{ minWidth: 48, textTransform: "none", color: "#CF4A2C" }}
-                          >
-                            Delete
-                          </Button>
-                        </Box>
-                      ))}
+                            <Box sx={{ position: "relative", background: "#000" }}>
+                              <video
+                                src={src}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                style={{
+                                  width: "100%",
+                                  aspectRatio: "9 / 16",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: 4,
+                                  left: 4,
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  color: "#fff",
+                                  background: "rgba(0,0,0,.5)",
+                                  borderRadius: "4px",
+                                  px: 0.6,
+                                  py: 0.2,
+                                }}
+                              >
+                                {index + 1} · 9:16
+                              </Box>
+                            </Box>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", p: 0.5 }}>
+                              <Button
+                                size="small"
+                                disabled={index === 0}
+                                onClick={() => handleReelMove(index, -1)}
+                                sx={{ minWidth: 28, color: "#737373" }}
+                              >
+                                ↑
+                              </Button>
+                              <Button
+                                size="small"
+                                disabled={index === (formData.reels || []).length - 1}
+                                onClick={() => handleReelMove(index, 1)}
+                                sx={{ minWidth: 28, color: "#737373" }}
+                              >
+                                ↓
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => handleReelRemove(index)}
+                                sx={{ minWidth: 28, color: "#CF4A2C" }}
+                              >
+                                ✕
+                              </Button>
+                            </Box>
+                          </Box>
+                        );
+                      })}
                     </Box>
                   )}
                 </Grid>
