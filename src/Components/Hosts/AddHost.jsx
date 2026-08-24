@@ -72,6 +72,8 @@ const AddHost = () => {
   // Accordion state for auto-opening on validation errors
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
+  // Host reels: validation message for the video picker.
+  const [reelError, setReelError] = useState("");
   const [formData, setFormData] = useState({
     // 1. Basic Information
     hostName: "",
@@ -106,6 +108,9 @@ const AddHost = () => {
     achievements: [],
     gallery: [],
     previousGallery: [],
+
+    // Instagram Reels gallery — array of public reel URL strings (ordered).
+    reels: [],
 
     // 6. Specialties & Expertise
     specialties: [],
@@ -208,6 +213,50 @@ const AddHost = () => {
       ...prevState,
       previousGallery: prevState.previousGallery.filter((_, i) => i !== index),
     }));
+  };
+
+  // ── Host reels (uploaded 9:16 videos) ──
+  // New reels carry a File (+ object-URL preview); existing reels (edit mode)
+  // carry the stored S3 videoUrl. The gallery serves these from our own CDN and
+  // autoplays them natively — no Instagram player, no redirect.
+  const MAX_REEL_BYTES = 100 * 1024 * 1024; // 100MB per reel (client guard)
+
+  const handleReelAdd = (files) => {
+    const list = Array.from(files || []);
+    const additions = [];
+    for (const file of list) {
+      if (!file.type.startsWith("video/")) {
+        setReelError("Only video files are allowed for reels.");
+        continue;
+      }
+      if (file.size > MAX_REEL_BYTES) {
+        setReelError("Each reel video must be under 100MB.");
+        continue;
+      }
+      additions.push({ file, previewUrl: URL.createObjectURL(file), name: file.name });
+    }
+    if (additions.length) {
+      setFormData((prev) => ({ ...prev, reels: [...(prev.reels || []), ...additions] }));
+      setReelError("");
+    }
+  };
+
+  const handleReelRemove = (index) => {
+    setFormData((prev) => {
+      const removed = (prev.reels || [])[index];
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return { ...prev, reels: (prev.reels || []).filter((_, i) => i !== index) };
+    });
+  };
+
+  const handleReelMove = (index, dir) => {
+    setFormData((prev) => {
+      const reels = [...(prev.reels || [])];
+      const target = index + dir;
+      if (target < 0 || target >= reels.length) return prev;
+      [reels[index], reels[target]] = [reels[target], reels[index]];
+      return { ...prev, reels };
+    });
   };
 
   // Convert a comma-separated string into a trimmed, de-duplicated array for
@@ -337,6 +386,11 @@ const AddHost = () => {
         achievements: hostData.achievements || [],
         gallery: [], // New images will be stored here
         previousGallery: hostData.gallery,
+        reels: Array.isArray(hostData.reels)
+          ? hostData.reels
+              .filter((r) => r && r.videoUrl)
+              .map((r) => ({ videoUrl: r.videoUrl, poster: r.poster, sourceUrl: r.sourceUrl }))
+          : [],
 
         // Specialties & Expertise
         specialties: hostData.specialties || [],
@@ -437,7 +491,7 @@ const AddHost = () => {
       try {
         const {
           brandingLogo, coverImage, gallery, panCard, gstCertificate,
-          bankPassbook, businessLicense, previousGallery,
+          bankPassbook, businessLicense, previousGallery, reels,
           idProof, certificates, insurance, ...serialisable
         } = formData;
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: Date.now(), data: serialisable }));
@@ -541,6 +595,22 @@ const AddHost = () => {
     formDataToSend.append("specialties", JSON.stringify(formData.specialties));
     formDataToSend.append("languages", JSON.stringify(formData.languages));
     formDataToSend.append("faqs", JSON.stringify(formData.faqs));
+    // Host reels — new videos go up as files (reelVideos), referenced by index;
+    // existing reels keep their stored S3 videoUrl. Server rebuilds the array.
+    {
+      const reelsMeta = [];
+      const reelFiles = [];
+      (formData.reels || []).forEach((r) => {
+        if (r.file) {
+          reelsMeta.push({ videoIndex: reelFiles.length });
+          reelFiles.push(r.file);
+        } else if (r.videoUrl) {
+          reelsMeta.push({ videoUrl: r.videoUrl, poster: r.poster, sourceUrl: r.sourceUrl });
+        }
+      });
+      formDataToSend.append("reels", JSON.stringify(reelsMeta));
+      reelFiles.forEach((f) => formDataToSend.append("reelVideos", f));
+    }
     formDataToSend.append(
       "verificationBadges",
       JSON.stringify(formData.verificationBadges)
@@ -1548,6 +1618,124 @@ const AddHost = () => {
                       }}
                     />
                   </Button>
+                </Grid>
+
+                {/* Reels Gallery (uploaded 9:16 videos) */}
+                <Grid item xs={12}>
+                  <Typography sx={{ color: "#737373", mb: 0.5 }}>
+                    Reels Gallery
+                  </Typography>
+                  <Typography
+                    sx={{ color: "#9b9b9b", fontSize: "12px", mb: 1.5 }}
+                  >
+                    Upload short vertical (9:16) videos for this host&apos;s
+                    gallery. They are stored on Nomadic Townies and autoplay
+                    muted in the gallery — no Instagram player or redirect. Max
+                    100MB per video.
+                  </Typography>
+
+                  <Button
+                    component="label"
+                    variant="contained"
+                    sx={{
+                      backgroundColor: "#CF4A2C",
+                      "&:hover": { backgroundColor: "#B83F23" },
+                      textTransform: "none",
+                    }}
+                  >
+                    + Add Reel Video
+                    <input
+                      type="file"
+                      hidden
+                      accept="video/mp4,video/quicktime,video/webm,video/*"
+                      multiple
+                      onChange={(e) => {
+                        handleReelAdd(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                  </Button>
+                  {reelError && (
+                    <Typography sx={{ color: "#CF4A2C", fontSize: "12px", mt: 1 }}>
+                      {reelError}
+                    </Typography>
+                  )}
+
+                  {(formData.reels || []).length > 0 && (
+                    <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 2 }}>
+                      {(formData.reels || []).map((reel, index) => {
+                        const src = reel.previewUrl || reel.videoUrl;
+                        return (
+                          <Box
+                            key={reel.videoUrl || reel.previewUrl || index}
+                            sx={{
+                              width: 132,
+                              border: "1px solid #eee",
+                              borderRadius: "10px",
+                              overflow: "hidden",
+                              backgroundColor: "#FAFAFA",
+                            }}
+                          >
+                            <Box sx={{ position: "relative", background: "#000" }}>
+                              <video
+                                src={src}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                style={{
+                                  width: "100%",
+                                  aspectRatio: "9 / 16",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                              <Box
+                                sx={{
+                                  position: "absolute",
+                                  top: 4,
+                                  left: 4,
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  color: "#fff",
+                                  background: "rgba(0,0,0,.5)",
+                                  borderRadius: "4px",
+                                  px: 0.6,
+                                  py: 0.2,
+                                }}
+                              >
+                                {index + 1} · 9:16
+                              </Box>
+                            </Box>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", p: 0.5 }}>
+                              <Button
+                                size="small"
+                                disabled={index === 0}
+                                onClick={() => handleReelMove(index, -1)}
+                                sx={{ minWidth: 28, color: "#737373" }}
+                              >
+                                ↑
+                              </Button>
+                              <Button
+                                size="small"
+                                disabled={index === (formData.reels || []).length - 1}
+                                onClick={() => handleReelMove(index, 1)}
+                                sx={{ minWidth: 28, color: "#737373" }}
+                              >
+                                ↓
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => handleReelRemove(index)}
+                                sx={{ minWidth: 28, color: "#CF4A2C" }}
+                              >
+                                ✕
+                              </Button>
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
                 </Grid>
               </Grid>
             </AccordionDetails>
