@@ -220,16 +220,16 @@ const BookingTable = () => {
   const getFilteredBookings = () => {
     return bookingArray?.filter((booking) => {
       const matchesName = filters.name
-        ? booking.userName.toLowerCase().includes(filters.name.toLowerCase())
+        ? (booking.userName || "").toLowerCase().includes(filters.name.toLowerCase())
         : true;
       const matchesEmail = filters.email
-        ? booking.email.toLowerCase().includes(filters.email.toLowerCase())
+        ? (booking.email || "").toLowerCase().includes(filters.email.toLowerCase())
         : true;
       const matchesPhone = filters.phone
-        ? booking.phone.includes(filters.phone)
+        ? (booking.phone || "").includes(filters.phone)
         : true;
       const matchesTripName = filters.tripName
-        ? booking.paymentDetail.title
+        ? ((typeof booking.paymentDetail === "object" ? booking.paymentDetail?.title : "") || "")
           .toLowerCase()
           .includes(filters.tripName.toLowerCase())
         : true;
