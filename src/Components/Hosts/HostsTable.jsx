@@ -76,7 +76,8 @@ const HostsTable = () => {
     }
   };
 
-  // Approve + create/link the host's dashboard login + email credentials.
+  // Send/resend the host's dashboard login: resets the password and emails the
+  // host the dashboard link + new credentials. Safe to click repeatedly.
   const handleActivate = async (host) => {
     try {
       const res = await activateHost(host._id).unwrap();
@@ -85,8 +86,8 @@ const HostsTable = () => {
         open: true,
         type: res?.data?.emailSent ? "success" : "warning",
         message: pw
-          ? `Activated. Email failed — share manually: ${host.emailAddress} / ${pw}`
-          : res?.message || "Host activated.",
+          ? `Email failed — share manually: ${host.emailAddress} / ${pw}`
+          : res?.message || "Login credentials emailed to the host.",
       });
     } catch (err) {
       setAlertState({
@@ -372,13 +373,13 @@ const HostsTable = () => {
                         {host.dashboardAccess !== false ? <LockOpenIcon /> : <LockIcon />}
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title={host.user ? "Dashboard login active" : "Activate host login (approve + email credentials)"}>
+                    <Tooltip title="Send dashboard login — resets password & emails the host the link + new password">
                       <span>
                         <IconButton
                           size="small"
-                          disabled={!!host.user || activating}
+                          disabled={activating}
                           onClick={() => handleActivate(host)}
-                          sx={{ color: host.user ? "#22C55E" : "#3B82F6" }}
+                          sx={{ color: "#22C55E" }}
                         >
                           <KeyIcon />
                         </IconButton>
