@@ -1981,7 +1981,14 @@ const AddHost = () => {
                     <Grid item xs={12} sm={6}>
                       <FormControl fullWidth size="small">
                         <Select
-                          sx={inputStyle}
+                          sx={{
+                            ...inputStyle,
+                            // The selected value renders in .MuiSelect-select,
+                            // which doesn't inherit the root color — force dark
+                            // text so the chosen badge is readable (was white).
+                            "& .MuiSelect-select": { color: "#1F2937", fontFamily: "Ubuntu" },
+                            "& .MuiSelect-icon": { color: "#EC3F18" },
+                          }}
                           value={badge.icon || "verified"}
                           onChange={(e) =>
                             handleBadgeChange(index, "icon", e.target.value)
