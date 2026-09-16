@@ -31,6 +31,21 @@ import {
   useSaveDraftMutation,
   useDeleteDraftMutation,
 } from "../../Redux/services/formDraftsApi";
+import { parseApiError, focusFirstError } from "../../utils/formErrors";
+import FormErrorSummary from "../common/FormErrorSummary";
+
+// Human labels for the fields the backend validates (for the error summary).
+const FIELD_LABELS = {
+  hostName: "Host Name",
+  emailAddress: "Email Address",
+  phoneNumber: "Phone Number",
+  panNumber: "PAN Number",
+  gstNumber: "GST Number",
+  bankName: "Bank Name",
+  accountHolderName: "Account Holder Name",
+  accountNumber: "Account Number",
+  ifscCode: "IFSC Code",
+};
 
 // Pull only the serialisable form fields (File objects can't be persisted; they
 // are re-attached at final submit). Shared by local autosave + server drafts.
@@ -64,6 +79,7 @@ const AddHost = () => {
   const isEditMode = !!id;
   const DRAFT_KEY = "nomadicHostDraft"; // autosaved new-host draft (add mode only)
   const [draftFound, setDraftFound] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({}); // { field: message } from the API
 
   const [createHost, { isLoading: isCreating }] = useCreateHostMutation();
   const [updateHost, { isLoading: isUpdating }] = useUpdateHostMutation();
@@ -256,7 +272,21 @@ const AddHost = () => {
       ...prevState,
       [name]: value,
     }));
+    // Clear this field's validation error as the admin corrects it.
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   };
+
+  // Field-level API validation errors: { fieldName: message }.
+  const fieldErrProps = (name) => ({
+    id: `fld-${name}`,
+    error: !!fieldErrors[name],
+    helperText: fieldErrors[name] || undefined,
+  });
 
   const handleSocialMediaChange = (platform, value) => {
     setFormData((prevState) => ({
@@ -593,34 +623,25 @@ const AddHost = () => {
 
     // Set validation attempted flag
     setValidationAttempted(true);
+    setFieldErrors({}); // clear stale API errors on a new attempt
 
-    // Validate required fields - Only Bank Account Details are required
-    if (
-      !formData.bankName ||
-      !formData.accountHolderName ||
-      !formData.accountNumber ||
-      !formData.ifscCode
-    ) {
-      // Auto-open the Bank Account Details accordion
+    // Client-side fast feedback for the required bank fields (backend still
+    // validates authoritatively). Highlight the exact missing fields.
+    const bankRequired = {
+      bankName: "Please enter the bank name.",
+      accountHolderName: "Please enter the account holder's name.",
+      accountNumber: "Please enter the account number.",
+      ifscCode: "Please enter the IFSC code.",
+    };
+    const bankMissing = {};
+    Object.keys(bankRequired).forEach((k) => {
+      if (!formData[k] || !String(formData[k]).trim()) bankMissing[k] = bankRequired[k];
+    });
+    if (Object.keys(bankMissing).length) {
+      setFieldErrors(bankMissing);
       setExpandedAccordion("bankAccountDetails");
-
-      // Scroll to the accordion after a short delay to ensure it's rendered
-      setTimeout(() => {
-        const accordionElement = document.querySelector(
-          '[data-accordion="bankAccountDetails"]'
-        );
-        if (accordionElement) {
-          accordionElement.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      }, 100);
-
-      showToast(
-        "Please fill in all Bank Account Details fields marked with *",
-        "error"
-      );
+      focusFirstError(bankMissing);
+      showToast("Please fix the highlighted bank account fields.", "error");
       return;
     }
 
@@ -790,7 +811,19 @@ const AddHost = () => {
       }, 2000);
     } catch (err) {
       console.error("Error saving host:", err);
-      showToast("Error saving host. Please try again.", "error");
+      // Map the API error to field-level messages + a friendly summary. Form
+      // data is never reset here, so all valid entries stay put.
+      const { message, fields } = parseApiError(err);
+      setFieldErrors(fields);
+      if (Object.keys(fields).length) {
+        // Open the bank accordion if a bank field is the first error.
+        focusFirstError(fields, (first) => {
+          if (["bankName", "accountHolderName", "accountNumber", "ifscCode"].includes(first)) {
+            setExpandedAccordion("bankAccountDetails");
+          }
+        });
+      }
+      showToast(message, "error");
     }
   };
 
@@ -901,6 +934,16 @@ const AddHost = () => {
               </Button>
             </Box>
           )}
+          {/* Universal field-level error summary */}
+          <FormErrorSummary
+            fields={fieldErrors}
+            labels={FIELD_LABELS}
+            onJump={(name) => {
+              if (["bankName", "accountHolderName", "accountNumber", "ifscCode"].includes(name)) {
+                setExpandedAccordion("bankAccountDetails");
+              }
+            }}
+          />
           {/* Page Title + Save Draft */}
           <Box sx={{ mb: 3, pt: 2, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Typography
@@ -942,6 +985,7 @@ const AddHost = () => {
                     sx={inputStyle}
                     size="small"
                     name="hostName"
+                    {...fieldErrProps("hostName")}
                     placeholder="Enter host name"
                     value={formData.hostName}
                     onChange={(e) => handleChange("hostName", e.target.value)}
@@ -1036,6 +1080,7 @@ const AddHost = () => {
                     sx={inputStyle}
                     size="small"
                     name="panNumber"
+                    {...fieldErrProps("panNumber")}
                     placeholder="Enter PAN number"
                     value={formData.panNumber}
                     onChange={(e) => handleChange("panNumber", e.target.value)}
@@ -1049,6 +1094,7 @@ const AddHost = () => {
                     sx={inputStyle}
                     size="small"
                     name="gstNumber"
+                    {...fieldErrProps("gstNumber")}
                     placeholder="Enter GST number"
                     value={formData.gstNumber}
                     onChange={(e) => handleChange("gstNumber", e.target.value)}
@@ -1141,6 +1187,7 @@ const AddHost = () => {
                     }}
                     size="small"
                     name="bankName"
+                    {...fieldErrProps("bankName")}
                     placeholder="Enter bank name"
                     value={formData.bankName}
                     onChange={(e) => handleChange("bankName", e.target.value)}
@@ -1166,6 +1213,7 @@ const AddHost = () => {
                     }}
                     size="small"
                     name="accountHolderName"
+                    {...fieldErrProps("accountHolderName")}
                     placeholder="Enter account holder name"
                     value={formData.accountHolderName}
                     onChange={(e) =>
@@ -1193,6 +1241,7 @@ const AddHost = () => {
                     }}
                     size="small"
                     name="accountNumber"
+                    {...fieldErrProps("accountNumber")}
                     placeholder="Enter account number"
                     value={formData.accountNumber}
                     onChange={(e) =>
@@ -1220,6 +1269,7 @@ const AddHost = () => {
                     }}
                     size="small"
                     name="ifscCode"
+                    {...fieldErrProps("ifscCode")}
                     placeholder="Enter IFSC code"
                     value={formData.ifscCode}
                     onChange={(e) => handleChange("ifscCode", e.target.value)}
@@ -2335,6 +2385,7 @@ const AddHost = () => {
                     sx={inputStyle}
                     size="small"
                     name="emailAddress"
+                    {...fieldErrProps("emailAddress")}
                     type="email"
                     placeholder="support@example.com"
                     value={formData.emailAddress}
@@ -2351,6 +2402,7 @@ const AddHost = () => {
                     sx={inputStyle}
                     size="small"
                     name="phoneNumber"
+                    {...fieldErrProps("phoneNumber")}
                     placeholder="(#91)"
                     value={formData.phoneNumber}
                     onChange={(e) =>
