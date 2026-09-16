@@ -26,6 +26,22 @@ import {
   useGetHostByIdQuery,
   useUpdateHostMutation,
 } from "../../Redux/services/hostsApi";
+import {
+  useLazyGetDraftsQuery,
+  useSaveDraftMutation,
+  useDeleteDraftMutation,
+} from "../../Redux/services/formDraftsApi";
+
+// Pull only the serialisable form fields (File objects can't be persisted; they
+// are re-attached at final submit). Shared by local autosave + server drafts.
+const serialisableForm = (formData) => {
+  const {
+    brandingLogo, coverImage, gallery, panCard, gstCertificate,
+    bankPassbook, businessLicense, previousGallery, reels,
+    idProof, certificates, insurance, ...rest
+  } = formData;
+  return rest;
+};
 
 const BADGE_ICON_OPTIONS = [
   "verified",
@@ -51,6 +67,64 @@ const AddHost = () => {
 
   const [createHost, { isLoading: isCreating }] = useCreateHostMutation();
   const [updateHost, { isLoading: isUpdating }] = useUpdateHostMutation();
+
+  // ── Backend-persisted form draft (survives reload + future sessions) ──
+  const [saveDraftReq, { isLoading: savingDraft }] = useSaveDraftMutation();
+  const [triggerGetDrafts] = useLazyGetDraftsQuery();
+  const [deleteDraftReq] = useDeleteDraftMutation();
+  const [serverDraft, setServerDraft] = useState(null); // matched draft for this form
+
+  // The draft's identity: null for a new host, the host id when editing one.
+  const draftRefId = isEditMode ? id : null;
+
+  // Find this form's saved server draft on mount (add: new-host draft; edit:
+  // unsaved edits to this host).
+  useEffect(() => {
+    let cancelled = false;
+    triggerGetDrafts("host")
+      .unwrap()
+      .then((res) => {
+        if (cancelled) return;
+        const list = res?.data || [];
+        const match = list.find((d) => (d.refId || null) === (draftRefId || null));
+        if (match) setServerDraft(match);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftRefId]);
+
+  const handleSaveDraft = async () => {
+    try {
+      const res = await saveDraftReq({
+        formType: "host",
+        refId: draftRefId,
+        label: formData.hostTitle || formData.hostName || "Untitled host",
+        data: serialisableForm(formData),
+      }).unwrap();
+      setServerDraft(res?.data || null);
+      setToast({ open: true, severity: "success", message: "Draft saved. You can resume it later." });
+    } catch (e) {
+      setToast({ open: true, severity: "error", message: e?.data?.message || "Could not save draft." });
+    }
+  };
+
+  const handleResumeDraft = () => {
+    if (serverDraft?.data) setFormData((prev) => ({ ...prev, ...serverDraft.data }));
+    setToast({ open: true, severity: "info", message: "Draft restored. Re-attach any files before saving." });
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!serverDraft?._id) return;
+    if (!window.confirm("Delete this draft?\n\nThis will permanently remove the saved information. Existing live hosts are not affected.")) return;
+    try {
+      await deleteDraftReq(serverDraft._id).unwrap();
+      setServerDraft(null);
+      setToast({ open: true, severity: "success", message: "Draft deleted." });
+    } catch (e) {
+      setToast({ open: true, severity: "error", message: e?.data?.message || "Could not delete draft." });
+    }
+  };
 
   // Fetch host data if in edit mode
   const { data: existingHost, isLoading: isLoadingHost } = useGetHostByIdQuery(
@@ -704,6 +778,12 @@ const AddHost = () => {
         try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
       }
 
+      // Only NOW that the save succeeded is it safe to discard the saved draft.
+      if (serverDraft?._id) {
+        try { await deleteDraftReq(serverDraft._id).unwrap(); } catch { /* ignore */ }
+        setServerDraft(null);
+      }
+
       // Wait for toast to be visible before navigating
       setTimeout(() => {
         navigate("/hosts");
@@ -777,8 +857,30 @@ const AddHost = () => {
       </style>
       <form onSubmit={handleSubmit}>
         <Container maxWidth="lg" sx={{ width: "100%" }}>
-          {/* Draft restore banner (add mode) */}
-          {draftFound && !isEditMode && (
+          {/* Saved (backend) draft banner — survives reload + future sessions */}
+          {serverDraft && (
+            <Box
+              sx={{
+                mt: 2, mb: 1, p: 2, borderRadius: "8px",
+                background: "#EFF6FF", border: "1px solid #BFDBFE",
+                display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap",
+              }}
+            >
+              <Typography sx={{ flex: 1, minWidth: 220, color: "#1E3A8A", fontSize: "14px" }}>
+                Saved draft found{serverDraft.updatedAt ? ` (${new Date(serverDraft.updatedAt).toLocaleString()})` : ""}. Restore it to continue. Uploaded files aren&apos;t stored — re-attach them before saving.
+              </Typography>
+              <Button size="small" variant="contained" onClick={handleResumeDraft}
+                sx={{ background: "#2563EB", textTransform: "none", "&:hover": { background: "#1D4ED8" } }}>
+                Resume Draft
+              </Button>
+              <Button size="small" variant="outlined" onClick={handleDeleteDraft}
+                sx={{ color: "#B91C1C", borderColor: "#FCA5A5", textTransform: "none" }}>
+                Delete Draft
+              </Button>
+            </Box>
+          )}
+          {/* Local unsaved-autosave banner (add mode) — only if no server draft */}
+          {draftFound && !isEditMode && !serverDraft && (
             <Box
               sx={{
                 mt: 2, mb: 1, p: 2, borderRadius: "8px",
@@ -799,18 +901,27 @@ const AddHost = () => {
               </Button>
             </Box>
           )}
-          {/* Page Title */}
-          <Box sx={{ mb: 3, pt: 2 }}>
+          {/* Page Title + Save Draft */}
+          <Box sx={{ mb: 3, pt: 2, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Typography
               variant="h4"
-              sx={{
-                fontWeight: 600,
-                color: "#393938",
-                textAlign: "center",
-              }}
+              sx={{ fontWeight: 600, color: "#393938", textAlign: "center" }}
             >
               {isEditMode ? "Edit Host" : "Add New Host"}
             </Typography>
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={handleSaveDraft}
+              disabled={savingDraft}
+              sx={{
+                position: "absolute", right: 0, textTransform: "none",
+                color: "#2563EB", borderColor: "#BFDBFE",
+                "&:hover": { borderColor: "#2563EB", background: "#EFF6FF" },
+              }}
+            >
+              {savingDraft ? "Saving…" : "Save Draft"}
+            </Button>
           </Box>
           {/* Basic Information Section */}
           <Accordion defaultExpanded sx={{ mb: 2, ...accordionStyle }}>
