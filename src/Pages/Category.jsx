@@ -24,6 +24,14 @@ import {
 import Loading from "../smallComponents/Loading";
 import Toastify from "../smallComponents/Toastify";
 
+// Force readable dark text in the Section Title / Subtitle fields (their value
+// was rendering invisible against the light form). Scoped to these inputs only.
+const sectionFieldSx = {
+  "& .MuiInputBase-input, & textarea": { color: "#000000" },
+  "& .MuiInputBase-input::placeholder, & textarea::placeholder": { color: "#9b9b9b", opacity: 1 },
+  "& .MuiInputBase-root": { backgroundColor: "#fff" },
+};
+
 const Category = () => {
   // Loading Toast
   const [loading, setLoading] = useState(false);
@@ -379,6 +387,7 @@ const Category = () => {
                 placeholder="Choose Your Adventure"
                 value={catTitle}
                 onChange={(e) => setCatTitle(e.target.value)}
+                sx={sectionFieldSx}
               />
             </Box>
             <Box>
@@ -393,6 +402,7 @@ const Category = () => {
                 placeholder="From serene mountain treks to adrenaline-pumping expeditions — find your perfect experience."
                 value={catSubtitle}
                 onChange={(e) => setCatSubtitle(e.target.value)}
+                sx={sectionFieldSx}
               />
             </Box>
             <Box>
