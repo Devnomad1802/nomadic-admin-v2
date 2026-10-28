@@ -72,6 +72,23 @@ let theme1 = createTheme({
     },
   },
   components: {
+    // Root-cause fix for "invisible input text": palette.text.primary is #fff
+    // (for dark surfaces), but admin forms sit on white, so any input without
+    // an explicit color inherited white-on-white and rendered its value
+    // invisible. This sets a single readable default for ALL input/textarea
+    // value text + placeholders. styleOverrides has lower precedence than sx,
+    // so inputs that deliberately set their own color (e.g. on a dark surface)
+    // still win — only the previously-invisible fields change.
+    MuiInputBase: {
+      styleOverrides: {
+        // targets .MuiInputBase-input — applies to both <input> and the
+        // multiline <textarea>, which carries the same class.
+        input: {
+          color: "#111111",
+          "&::placeholder": { color: "#8a8a8a", opacity: 1 },
+        },
+      },
+    },
     MuiButton: {
       variants: [
         {
