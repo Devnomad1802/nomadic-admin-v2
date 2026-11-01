@@ -4,6 +4,7 @@ import { styled } from "@mui/material/styles";
 import PropTypes from "prop-types";
 import ProfileSetting from "../Components/Setting/Tabs/ProfileSetting";
 import ChangePassword from "../Components/Setting/Tabs/ChangePassword";
+import PaymentMaintenance from "../Components/Setting/Tabs/PaymentMaintenance";
 import Logout from "../Components/Setting/Tabs/Logout";
 
 const AntTab = styled((props) => <Tab disableRipple {...props} />)(
@@ -108,7 +109,8 @@ const Settings = () => {
                 >
                     <AntTab label="Profile Settings" {...a11yProps(0)} />
                     <AntTab label="Change Password" {...a11yProps(1)} />
-                    <AntTab label="Logout" {...a11yProps(2)} />
+                    <AntTab label="Payments" {...a11yProps(2)} />
+                    <AntTab label="Logout" {...a11yProps(3)} />
                 </Tabs>
             </Box>
             <Box
@@ -131,8 +133,13 @@ const Settings = () => {
                         <ChangePassword />
                     </TabPanel>
 
-                    {/* Logout Tab */}
+                    {/* Payment Maintenance Tab */}
                     <TabPanel value={value} index={2}>
+                        <PaymentMaintenance />
+                    </TabPanel>
+
+                    {/* Logout Tab */}
+                    <TabPanel value={value} index={3}>
                         <Logout />
                     </TabPanel>
                 </Container>
