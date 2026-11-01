@@ -26,7 +26,7 @@ const Diag = ({ label, ok, text }) => (
 );
 
 const PaymentMaintenance = () => {
-  const { data, isLoading, isError, refetch } = useGetPaymentSettingsQuery();
+  const { data, isLoading, isError, error, refetch } = useGetPaymentSettingsQuery();
   const [save, { isLoading: saving }] = useUpdatePaymentSettingsMutation();
 
   // Local editable form state, seeded from the server once loaded.
@@ -51,11 +51,27 @@ const PaymentMaintenance = () => {
     [form?.whatsappNumber]
   );
 
-  if (isLoading || !form) {
+  // Show the spinner only while actually fetching. If the request fails (e.g. the
+  // payments API isn't deployed yet) surface an actionable error instead of
+  // hanging on the loader forever.
+  if (isLoading) {
     return <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>;
   }
-  if (isError) {
-    return <Alert severity="error" action={<Button onClick={refetch}>Retry</Button>}>Could not load payment settings.</Alert>;
+  if (isError || !data) {
+    const status = error?.status;
+    const hint =
+      status === 404
+        ? "The payments settings API isn't available on the server this admin is pointed at. Deploy the server branch (or point VITE_API_URL at an environment that has it)."
+        : "Could not reach the payments settings API.";
+    return (
+      <Alert severity="error" sx={{ m: 2 }} action={<Button color="inherit" size="small" onClick={refetch}>Retry</Button>}>
+        {hint}{status ? ` (HTTP ${status})` : ""}
+      </Alert>
+    );
+  }
+  if (!form) {
+    // Data has arrived but the form hasn't seeded for one render — brief.
+    return <Box sx={{ p: 4, textAlign: "center" }}><CircularProgress /></Box>;
   }
 
   const d = data.diagnostics || {};
