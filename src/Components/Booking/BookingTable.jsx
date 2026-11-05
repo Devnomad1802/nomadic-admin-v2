@@ -6,7 +6,7 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
-import { Box, InputAdornment, TextField, Typography } from "@mui/material";
+import { Box, InputAdornment, TextField, Typography, TablePagination } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import BookingModal from "./BookingModal";
 
@@ -203,10 +203,17 @@ const status = [
     label: "Cancelled",
   },
 ];
+// Contact fallbacks: top-level field → lead traveller → "—" (so bookings
+// without a stored userName/email still show who booked).
+const leadOf = (b) =>
+  Array.isArray(b?.travellers) ? (b.travellers.find((t) => t?.isLead) || b.travellers[0]) : null;
+const leadNameOf = (b) => b?.userName || leadOf(b)?.name || "—";
+const leadEmailOf = (b) => b?.email || leadOf(b)?.email || "—";
+const leadPhoneOf = (b) => b?.phone || leadOf(b)?.phone || "—";
+
 const BookingTable = () => {
-  const { error, isLoading, data: responseData } = useGetAllBookingQuery();
-  const [bookingArray, setBookingArray] = useState([]);
-  console.log("bookingArray....", bookingArray);
+  const [page, setPage] = useState(0); // 0-based for TablePagination
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const [filters, setFilters] = useState({
     name: "",
@@ -215,33 +222,37 @@ const BookingTable = () => {
     tripName: "",
   });
 
-  console.log("filters....", filters);
+  // The "Name" box drives the SERVER search (spans ALL bookings by
+  // name/email/phone); pagination is server-driven too.
+  const { error, isLoading, data: responseData } = useGetAllBookingQuery({
+    page: page + 1,
+    limit: rowsPerPage,
+    search: filters.name,
+    status: "All",
+  });
+  const [bookingArray, setBookingArray] = useState([]);
+  const totalBookings = responseData?.totalTrips || 0;
 
-  const getFilteredBookings = () => {
-    return bookingArray?.filter((booking) => {
-      const matchesName = filters.name
-        ? (booking.userName || "").toLowerCase().includes(filters.name.toLowerCase())
-        : true;
-      const matchesEmail = filters.email
-        ? (booking.email || "").toLowerCase().includes(filters.email.toLowerCase())
-        : true;
-      const matchesPhone = filters.phone
-        ? (booking.phone || "").includes(filters.phone)
-        : true;
-      const matchesTripName = filters.tripName
-        ? ((typeof booking.paymentDetail === "object" ? booking.paymentDetail?.title : "") || "")
-          .toLowerCase()
-          .includes(filters.tripName.toLowerCase())
-        : true;
+  // Reset to the first page whenever the server search term changes.
+  useEffect(() => {
+    setPage(0);
+  }, [filters.name, rowsPerPage]);
 
-      return matchesName && matchesEmail && matchesPhone && matchesTripName;
-    });
-  };
-  const filteredBookings = getFilteredBookings();
-
-  console.log("filteredBookings....", filteredBookings);
-
-  console.log("bookingArray...", bookingArray);
+  // Email / phone / trip-name refine the CURRENT page client-side.
+  const filteredBookings = (bookingArray || []).filter((booking) => {
+    const matchesEmail = filters.email
+      ? leadEmailOf(booking).toLowerCase().includes(filters.email.toLowerCase())
+      : true;
+    const matchesPhone = filters.phone
+      ? leadPhoneOf(booking).includes(filters.phone)
+      : true;
+    const matchesTripName = filters.tripName
+      ? ((typeof booking.paymentDetail === "object" ? booking.paymentDetail?.title : "") || "")
+        .toLowerCase()
+        .includes(filters.tripName.toLowerCase())
+      : true;
+    return matchesEmail && matchesPhone && matchesTripName;
+  });
   useEffect(() => {
     if (responseData?.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
       const updatedBookingArray = responseData.data.map((booking) => {
@@ -656,7 +667,7 @@ const BookingTable = () => {
                           fontWeight: "300",
                         }}
                       >
-                        {row?.userName}
+                        {leadNameOf(row)}
                       </Typography>
                     </TableCell>
 
@@ -676,7 +687,7 @@ const BookingTable = () => {
                           fontWeight: "300",
                         }}
                       >
-                        {row?.email}
+                        {leadEmailOf(row)}
                       </Typography>
                     </TableCell>
 
@@ -696,7 +707,7 @@ const BookingTable = () => {
                           fontWeight: "300",
                         }}
                       >
-                        {row?.phone}
+                        {leadPhoneOf(row)}
                       </Typography>
                     </TableCell>
 
@@ -908,6 +919,16 @@ const BookingTable = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          component="div"
+          count={totalBookings}
+          page={page}
+          onPageChange={(e, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+          rowsPerPageOptions={[20, 50, 100, 500]}
+          labelRowsPerPage="Bookings per page"
+        />
       </Box>
     </>
   );
