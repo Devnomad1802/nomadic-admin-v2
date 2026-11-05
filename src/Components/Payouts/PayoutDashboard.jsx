@@ -4,15 +4,39 @@ import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import { useGetPayoutQuery } from "../../Redux/services/payoutApi";
+
+// Per-booking payout/commission (mirrors PayoutTable.calculatePayoutDetails).
+const parseJson = (s) => { try { return JSON.parse(s); } catch { return null; } };
+const calcPayout = (b) => {
+  const pd = parseJson(b?.paymentDetail);
+  const cd = parseJson(b?.cardData);
+  const totalAmount = (cd && cd.AmountTotal) || b?.total || 0;
+  const rate = pd && pd.commissionRate ? parseFloat(pd.commissionRate) : 15;
+  const commission = (totalAmount * rate) / 100;
+  return { commission, payoutAmount: totalAmount - commission };
+};
 
 const PayoutDashboard = () => {
-  // Mock data - replace with actual API data
-  const payoutStats = {
-    totalPayouts: 128476.65,
-    pendingPayouts: 28049.15,
-    totalCommission: 22672.35,
-    completedPayouts: 2,
-  };
+  // Real data: full-payment bookings eligible for host payout.
+  const { data: payoutData } = useGetPayoutQuery();
+  const rows = Array.isArray(payoutData) ? payoutData : payoutData?.data || [];
+
+  const payoutStats = rows.reduce(
+    (a, b) => {
+      const { commission, payoutAmount } = calcPayout(b);
+      const processed = b?.payoutId?.razorpayStatus === "processed";
+      a.totalCommission += commission;
+      if (processed) {
+        a.totalPayouts += payoutAmount;
+        a.completedPayouts += 1;
+      } else {
+        a.pendingPayouts += payoutAmount;
+      }
+      return a;
+    },
+    { totalPayouts: 0, pendingPayouts: 0, totalCommission: 0, completedPayouts: 0 }
+  );
 
   const formatCurrency = (amount) => {
     return `₹${amount.toLocaleString('en-IN')}`;
