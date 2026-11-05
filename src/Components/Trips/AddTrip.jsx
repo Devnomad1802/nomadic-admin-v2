@@ -878,9 +878,14 @@ const AddTrip = () => {
         )
       );
 
-      // Append multiple images to formDataToSend
-      formData.gallaryImages.forEach((image) => {
-        formDataToSend.append("gallaryImages", image);
+      // Append multiple gallery images (File or Blob; give Blobs a filename so
+      // the server/multer gets a proper upload).
+      formData.gallaryImages.forEach((image, i) => {
+        if (image instanceof File) {
+          formDataToSend.append("gallaryImages", image, image.name || `gallery-${i}.jpg`);
+        } else if (image instanceof Blob) {
+          formDataToSend.append("gallaryImages", image, `gallery-${i}.jpg`);
+        }
       });
       // addSection.forEach((section, sectionIndex) => {
       //   section.array.forEach((item, dayIndex) => {

@@ -1253,11 +1253,17 @@ const UpdateTrip = ({ tripData }) => {
         formDataToSend.append('itenarryImg', formData.itenarryImg);
       }
 
-      // Add gallery images (multiple files)
+      // Add gallery images (multiple files). Accept File OR Blob — image
+      // compression / canvas.toBlob can yield a Blob, which previews fine but
+      // was being silently dropped by a File-only check (gallery never saved).
       if (formData?.gallaryImages && formData.gallaryImages.length > 0) {
-        formData.gallaryImages.forEach((image) => {
+        formData.gallaryImages.forEach((image, i) => {
           if (image instanceof File) {
-            formDataToSend.append('gallaryImages', image);
+            formDataToSend.append('gallaryImages', image, image.name || `gallery-${i}.jpg`);
+          } else if (image instanceof Blob) {
+            formDataToSend.append('gallaryImages', image, `gallery-${i}.jpg`);
+          } else {
+            console.warn('Skipped a gallery item that is neither File nor Blob:', image);
           }
         });
       }
