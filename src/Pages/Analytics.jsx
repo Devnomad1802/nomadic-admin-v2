@@ -26,10 +26,10 @@ import {
 } from "recharts";
 import { useGetUsersQuery } from "../Redux/services/authApis";
 import {
-  useGetAllBookingQuery,
   useGetAllEnquriesQuery,
   useGetTripsQuery,
 } from "../Redux/services";
+import { useGetBookingsForAnalyticsQuery } from "../Redux/services/analytics";
 
 const RUST = "#CD482A";
 const GREEN = "#22c55e";
@@ -89,7 +89,16 @@ const RANGES = [
   { key: "30d", label: "30 Days", days: 30 },
   { key: "90d", label: "90 Days", days: 90 },
   { key: "year", label: "This Year", days: 365 },
+  { key: "all", label: "All time", days: null },
 ];
+
+// A booking counts toward revenue/KPIs only if actually PAID (full or advance)
+// and NOT a test-sandbox booking. "created" (unpaid/abandoned) + mode:test never
+// count as captured revenue.
+const isEligible = (b) =>
+  (b?.paymentStatus === "fullPayment" || b?.paymentStatus === "firstPayment") &&
+  b?.mode !== "test";
+const isAbandoned = (b) => b?.paymentStatus === "created" && b?.mode !== "test";
 
 const card = {
   background: "#fff",
@@ -114,7 +123,7 @@ function KpiCard({ icon, color, label, value }) {
 const Analytics = () => {
   const [range, setRange] = useState("30d");
 
-  const { data: bookingsRes, isLoading: lb } = useGetAllBookingQuery();
+  const { data: bookingsRes, isLoading: lb } = useGetBookingsForAnalyticsQuery();
   const { data: usersRes, isLoading: lu } = useGetUsersQuery();
   const { data: enquiriesRes, isLoading: le } = useGetAllEnquriesQuery({ range: "All" });
   const { data: tripsRes, isLoading: lt } = useGetTripsQuery();
@@ -124,6 +133,7 @@ const Analytics = () => {
   const from = useMemo(() => {
     const now = new Date();
     const r = RANGES.find((x) => x.key === range) || RANGES[1];
+    if (range === "all") return new Date(0); // everything till now
     return range === "year"
       ? new Date(now.getFullYear(), 0, 1)
       : new Date(now.getTime() - r.days * 24 * 60 * 60 * 1000);
@@ -136,7 +146,10 @@ const Analytics = () => {
     const now = new Date();
     const inRange = (d) => d && d >= from && d <= now;
 
-    const bookings = allBookings.filter((b) => inRange(bookingDate(b)));
+    const inRangeAll = allBookings.filter((b) => inRange(bookingDate(b)));
+    // Only PAID, non-test bookings drive revenue/KPIs; abandoned counted apart.
+    const bookings = inRangeAll.filter(isEligible);
+    const abandoned = inRangeAll.filter(isAbandoned).length;
 
     let totalSales = 0;
     let totalPending = 0;
@@ -147,12 +160,15 @@ const Analytics = () => {
 
     bookings.forEach((b) => {
       const paid = Number(b.total) || 0;
-      const grand = grandTotal(b);
-      const pending = grand - paid > 0 ? grand - paid : 0;
       totalSales += paid;
-      totalPending += pending;
-      if (pending > 0) partial += 1;
-      else fullPaid += 1;
+      // Outstanding balance applies only to partial (firstPayment) bookings.
+      if (b.paymentStatus === "firstPayment") {
+        const pending = grandTotal(b) - paid > 0 ? grandTotal(b) - paid : 0;
+        if (pending > 0) { totalPending += pending; partial += 1; }
+        else fullPaid += 1;
+      } else {
+        fullPaid += 1;
+      }
 
       const name = tripName(b);
       const key = b.tripId || name;
@@ -181,6 +197,7 @@ const Analytics = () => {
         totalSales,
         totalPending,
         bookings: bookingsCount,
+        abandoned,
         newUsers: newUsers.length,
         enquiries: enquiries.length,
         avgBookingValue: bookingsCount ? Math.round(totalSales / bookingsCount) : 0,

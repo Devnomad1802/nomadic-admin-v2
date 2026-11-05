@@ -15,7 +15,12 @@ const AnalyticsApi = api.injectEndpoints({
         };
       },
     }),
+    // ALL bookings for the analytics dashboard (not the paginated 20 the Bookings
+    // list uses) — the dashboard must aggregate over the full set.
+    getBookingsForAnalytics: builder.query({
+      query: () => ({ url: "/getAllBookings?limit=100000", method: "GET" }),
+    }),
   }),
 });
 
-export const { useGetAnalyticsOverviewQuery } = AnalyticsApi;
+export const { useGetAnalyticsOverviewQuery, useGetBookingsForAnalyticsQuery } = AnalyticsApi;
