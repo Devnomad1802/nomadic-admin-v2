@@ -89,6 +89,13 @@ let theme1 = createTheme({
         },
       },
     },
+    // Same invisible-text cause for popup menus (Select / TablePagination rows-
+    // per-page, dropdowns): MenuItem text inherited white on a white menu.
+    MuiMenuItem: {
+      styleOverrides: {
+        root: { color: "#111111" },
+      },
+    },
     MuiButton: {
       variants: [
         {
