@@ -84,7 +84,8 @@ const UserBooking = () => {
   const navigate = useNavigate();
 
   // Get All Users
-  const { error, isLoading, data: responseData } = useGetUsersQuery();
+  // Customers only (role NOT Admin/Host), filtered server-side.
+  const { error, isLoading, data: responseData } = useGetUsersQuery({ role: "customer" });
   const [usersArray, setUsersArray] = useState([]);
   const [delModal, setDelModal] = useState(false);
   const [deletripId, setDeleteTripId] = useState("");

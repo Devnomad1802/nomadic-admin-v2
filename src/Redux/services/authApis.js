@@ -36,10 +36,14 @@ const authApis = api.injectEndpoints({
     }),
 
     getUsers: builder.query({
-      query: () => ({
-        url: "/auth/users",
-        method: "GET",
-      }),
+      query: (params = {}) => {
+        const p = new URLSearchParams();
+        if (params.role) p.set("role", params.role);
+        if (params.page) p.set("page", params.page);
+        if (params.search) p.set("search", params.search);
+        const qs = p.toString();
+        return { url: `/auth/users${qs ? `?${qs}` : ""}`, method: "GET" };
+      },
       providesTags: ["user"],
     }),
 

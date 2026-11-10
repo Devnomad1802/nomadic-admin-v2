@@ -43,7 +43,7 @@ const array2 = [
     link1: "/trip/proposals",
   },
   {
-    name: "User",
+    name: "Customers",
     link1: "/user",
   },
   {
@@ -61,6 +61,10 @@ const array2 = [
   {
     name: "Host Applications",
     link1: "/hosts/applications",
+  },
+  {
+    name: "Host Users",
+    link1: "/host-users",
   },
   {
     name: "Payouts",
