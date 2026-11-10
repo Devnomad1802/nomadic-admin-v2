@@ -32,6 +32,7 @@ import Category from "./Pages/Category";
 import Coupons from "./Pages/Coupons";
 import Hosts from "./Pages/Hosts";
 import UserBooking from "./Pages/UserBooking";
+import HostUsers from "./Pages/HostUsers";
 import Vendors from "./Pages/Vendors";
 import Emailvarification from "./smallComponents/Emailvarification";
 import PrivateRoutes from "./Routes/PrivateRoutes";
@@ -87,6 +88,7 @@ const App = () => {
             <Route path="/trip/proposals" element={<Proposals />} />
             <Route path="/trip/tripTabs" element={<TripsTabs />} />
             <Route path="/user" element={<UserBooking />} />
+            <Route path="/host-users" element={<HostUsers />} />
             <Route path="/user/userTabs" element={<UserTabs />} />
             <Route path="/enquire" element={<Enquire />} />
             <Route path="/blogs" element={<Blogs />} />
