@@ -96,6 +96,15 @@ let theme1 = createTheme({
         root: { color: "#111111" },
       },
     },
+    // Same invisible-text cause for data tables: TableCell text inherits
+    // palette.text.primary (#fff, meant for dark surfaces) and vanished on the
+    // white table (e.g. Host Users Name/Email/Phone). styleOverrides < sx, so
+    // cells that set their own color keep it — only the inherited ones change.
+    MuiTableCell: {
+      styleOverrides: {
+        root: { color: "#111111" },
+      },
+    },
     MuiButton: {
       variants: [
         {
