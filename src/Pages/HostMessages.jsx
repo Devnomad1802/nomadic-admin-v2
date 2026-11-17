@@ -8,6 +8,8 @@ import {
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import CloseIcon from "@mui/icons-material/Close";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import RichMessage from "../Components/common/RichMessage";
 import {
   useGetHostConversationsQuery,
   useLazyGetHostConversationQuery,
@@ -45,7 +47,8 @@ const HostMessages = () => {
 
   const [loadThread, { data: thread, isFetching: threadLoading }] = useLazyGetHostConversationQuery();
   const [open, setOpen] = useState(false);
-  const openThread = (id) => { setOpen(true); loadThread(id); };
+  const [histOpen, setHistOpen] = useState({}); // messageIndex -> bool
+  const openThread = (id) => { setOpen(true); setHistOpen({}); loadThread(id); };
 
   return (
     <Box sx={{ width: "100%", maxWidth: "xl", mx: "auto", px: 1, py: 2 }}>
@@ -152,15 +155,47 @@ const HostMessages = () => {
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
                 {thread.data.messages.map((m, i) => {
                   const host = `${m.by}`.toLowerCase() === "host";
+                  const hist = m.history || [];
                   return (
-                    <Box key={i} sx={{ alignSelf: host ? "flex-start" : "flex-end", maxWidth: "80%" }}>
+                    <Box key={i} sx={{ alignSelf: host ? "flex-start" : "flex-end", maxWidth: "82%" }}>
                       <Box sx={{
-                        background: host ? "#F1EADD" : "#FDECE6", color: "#221C17",
+                        background: m.deleted ? "#F3F4F6" : host ? "#F1EADD" : "#FDECE6",
+                        color: m.deleted ? "#8a8a8a" : "#221C17",
+                        border: m.deleted ? "1px dashed #d0d0d0" : "none",
+                        fontStyle: m.deleted ? "italic" : "normal",
                         borderRadius: 2, px: 1.5, py: 1, fontSize: 14,
-                      }}>{m.text}</Box>
-                      <Typography sx={{ fontSize: 11, color: "#9b9b9b", mt: 0.3, textAlign: host ? "left" : "right" }}>
-                        {host ? "Host" : "Customer"} · {fmt(m.at)}
-                      </Typography>
+                      }}>
+                        {m.deleted
+                          ? `Deleted by ${m.deletedBy || "host"}: "${m.text}"`
+                          : <RichMessage text={m.text} />}
+                      </Box>
+                      <Box sx={{ display: "flex", gap: 0.8, alignItems: "center", mt: 0.3, justifyContent: host ? "flex-start" : "flex-end", flexWrap: "wrap" }}>
+                        <Typography sx={{ fontSize: 11, color: "#9b9b9b" }}>
+                          {host ? "Host" : "Customer"} · {fmt(m.at)}
+                        </Typography>
+                        {m.edited && !m.deleted && <Chip size="small" label="Edited" variant="outlined" sx={{ height: 18, fontSize: 10 }} />}
+                        {m.deleted && <Chip size="small" color="error" label="Deleted" variant="outlined" sx={{ height: 18, fontSize: 10 }} />}
+                        {hist.length > 0 && (
+                          <Box
+                            component="span" onClick={() => setHistOpen((s) => ({ ...s, [i]: !s[i] }))}
+                            sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, fontSize: 10.5, color: RUST, cursor: "pointer" }}
+                          >
+                            <HistoryRoundedIcon sx={{ fontSize: 13 }} /> {histOpen[i] ? "Hide" : "View"} history ({hist.length})
+                          </Box>
+                        )}
+                      </Box>
+                      {histOpen[i] && hist.length > 0 && (
+                        <Box sx={{ mt: 0.6, pl: 1, borderLeft: "2px solid #E6DDCF" }}>
+                          {hist.map((h, hi) => (
+                            <Box key={hi} sx={{ mb: 0.6 }}>
+                              <Typography sx={{ fontSize: 10.5, color: "#9b9b9b" }}>
+                                {h.action === "delete" ? "Deleted" : "Before edit"} · {h.editorRole} · {fmt(h.at)}
+                              </Typography>
+                              <Typography sx={{ fontSize: 12.5, color: "#555", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{h.text}</Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
                     </Box>
                   );
                 })}
