@@ -1,56 +1,89 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Paper,
   Chip, CircularProgress, Alert, TextField, InputAdornment, TablePagination, FormControlLabel,
-  Switch, Dialog, DialogTitle, DialogContent, IconButton, Divider,
+  Switch, Dialog, DialogTitle, DialogContent, IconButton, Divider, Select, MenuItem,
+  FormControl, InputLabel,
 } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import CloseIcon from "@mui/icons-material/Close";
+import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 import {
   useGetHostConversationsQuery,
   useLazyGetHostConversationQuery,
 } from "../Redux/services/hostMessagesApi";
+import { useGetAllHostsQuery } from "../Redux/services/hostsApi";
 
 const RUST = "#CD482A";
 const fmt = (d) => (d ? new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
 
-// Admin monitoring of on-platform host<->traveller chat. Read-only. Contact
-// sharing is blocked at send time (never stored); flagged = moderation history.
+// Admin monitoring of on-platform host<->traveller chat. Read-only, host-centric:
+// pick a host to track every conversation they are having with travellers.
+// Contact sharing is blocked at send time (never stored); flagged = moderation history.
 const HostMessages = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [search, setSearch] = useState("");
   const [flagged, setFlagged] = useState(false);
+  const [hostId, setHostId] = useState(""); // "" = all hosts
+
+  // Host list for the filter dropdown.
+  const { data: hostsRaw } = useGetAllHostsQuery();
+  const hosts = useMemo(() => {
+    const list = Array.isArray(hostsRaw?.data) ? hostsRaw.data : Array.isArray(hostsRaw) ? hostsRaw : [];
+    return list
+      .map((h) => ({ id: h._id, name: h.hostTitle || h.hostName || h.displayName || "Unnamed host" }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [hostsRaw]);
+  const selectedHost = hosts.find((h) => h.id === hostId);
 
   const { data, isLoading, isError, refetch } = useGetHostConversationsQuery({
-    page: page + 1, limit: rowsPerPage, search, flagged,
+    page: page + 1, limit: rowsPerPage, search, flagged, hostId,
   });
   const rows = data?.data || [];
   const total = data?.total || 0;
 
   const [loadThread, { data: thread, isFetching: threadLoading }] = useLazyGetHostConversationQuery();
   const [open, setOpen] = useState(false);
-
   const openThread = (id) => { setOpen(true); loadThread(id); };
 
   return (
     <Box sx={{ width: "100%", maxWidth: "xl", mx: "auto", px: 1, py: 2 }}>
       <Typography sx={{ fontSize: 22, fontWeight: 700, color: "#111", mb: 0.5 }}>Host Messages</Typography>
       <Typography sx={{ fontSize: 14, color: "#666", mb: 2 }}>
-        On-platform conversations between travellers and hosts (monitored for safety; contact-sharing is blocked automatically).
+        Track every on-platform conversation a host is having with travellers. Read-only; contact-sharing is blocked automatically.
       </Typography>
 
+      {/* Filter bar — host first (host-centric) */}
       <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2, flexWrap: "wrap" }}>
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel id="host-filter-label">Host</InputLabel>
+          <Select
+            labelId="host-filter-label" label="Host" value={hostId}
+            onChange={(e) => { setHostId(e.target.value); setPage(0); }}
+          >
+            <MenuItem value=""><em>All hosts</em></MenuItem>
+            {hosts.map((h) => (<MenuItem key={h.id} value={h.id}>{h.name}</MenuItem>))}
+          </Select>
+        </FormControl>
         <TextField
           size="small" placeholder="Search customer / email / trip"
           value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-          sx={{ width: 320, maxWidth: "100%" }}
+          sx={{ width: 300, maxWidth: "100%" }}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 20 }} /></InputAdornment>) }}
         />
         <FormControlLabel
           control={<Switch checked={flagged} onChange={(e) => { setFlagged(e.target.checked); setPage(0); }} />}
           label="Flagged only"
         />
+      </Box>
+
+      {/* Context heading */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+        <ForumRoundedIcon sx={{ fontSize: 18, color: RUST }} />
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#333" }}>
+          {selectedHost ? `${selectedHost.name} · ${total} conversation${total === 1 ? "" : "s"}` : `All hosts · ${total} conversation${total === 1 ? "" : "s"}`}
+        </Typography>
       </Box>
 
       {isLoading ? (
@@ -65,7 +98,7 @@ const HostMessages = () => {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ background: "#F3F4F6" }}>
-                  {["Customer", "Host", "Trip", "Last message", "When", "Status"].map((h) => (
+                  {["Host", "Customer", "Trip", "Last message", "Msgs", "When", "Status"].map((h) => (
                     <TableCell key={h} sx={{ fontWeight: 700, fontSize: 13, color: "#667085" }}>{h}</TableCell>
                   ))}
                 </TableRow>
@@ -73,12 +106,13 @@ const HostMessages = () => {
               <TableBody>
                 {rows.map((c) => (
                   <TableRow key={c._id} hover sx={{ cursor: "pointer" }} onClick={() => openThread(c._id)}>
+                    <TableCell sx={{ fontSize: 13, fontWeight: 600, color: "#221C17" }}>{c.hostName}</TableCell>
                     <TableCell sx={{ fontSize: 13 }}>
                       {c.customerName}<br /><span style={{ color: "#888", fontSize: 12 }}>{c.customerEmail}</span>
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13 }}>{c.hostName}</TableCell>
                     <TableCell sx={{ fontSize: 13 }}>{c.tripName}</TableCell>
-                    <TableCell sx={{ fontSize: 13, color: "#555", maxWidth: 280 }}>{c.lastMessage || "—"}</TableCell>
+                    <TableCell sx={{ fontSize: 13, color: "#555", maxWidth: 260 }}>{c.lastMessage || "—"}</TableCell>
+                    <TableCell sx={{ fontSize: 13, color: "#555" }}>{c.messageCount ?? "—"}</TableCell>
                     <TableCell sx={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{fmt(c.lastAt)}</TableCell>
                     <TableCell>
                       {c.flagged && <Chip size="small" label="Flagged" color="error" variant="outlined" sx={{ mr: 0.5 }} />}
@@ -101,7 +135,7 @@ const HostMessages = () => {
       {/* Thread viewer */}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle sx={{ pr: 6 }}>
-          {thread?.data ? `${thread.data.customer?.name} ↔ ${thread.data.hostName}` : "Conversation"}
+          {thread?.data ? `${thread.data.hostName} ↔ ${thread.data.customer?.name}` : "Conversation"}
           <Typography sx={{ fontSize: 12.5, color: "#888" }}>{thread?.data?.tripName}</Typography>
           <IconButton onClick={() => setOpen(false)} sx={{ position: "absolute", right: 8, top: 8 }}><CloseIcon /></IconButton>
         </DialogTitle>
