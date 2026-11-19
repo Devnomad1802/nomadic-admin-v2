@@ -19,19 +19,22 @@ const isNewEnquiry = (e) => {
 };
 
 const Dashboard = () => {
-  const { error, isLoading, data: responseData } = useGetUsersQuery();
+  // Hosts and customers use role-scoped queries so each count comes from the
+  // server's authoritative `total` (countDocuments) and is NOT capped by the
+  // users endpoint's pagination (default limit 10).
+  const { error, isLoading, data: hostsRes } = useGetUsersQuery({ role: "host" });
+  const { data: customersRes } = useGetUsersQuery({ role: "customer" });
 
   const { data: enquir } = useGetAllEnquriesQuery({ range: "All" });
   const { data: bookings } = useGetAllBookingQuery();
   const { data: trips } = useGetTripsQuery();
 
-  // Split the single user pool into hosts vs customers. Hosts are User docs
-  // with role "Host"; customers are every other non-admin account. Admins are
-  // excluded from both so neither card double-counts.
-  const allUsers = responseData?.users ?? [];
-  const nonAdmin = allUsers.filter((u) => u.role !== "Admin");
-  const hostCount = nonAdmin.filter((u) => (u.role ?? "").toLowerCase() === "host").length;
-  const customerCount = nonAdmin.length - hostCount;
+  const hostCount = hostsRes?.total;
+  const customerCount = customersRes?.total;
+
+  // Bookings endpoint is paginated — `data` is one page, `totalTrips` is the
+  // true count. Enquiries + Trips endpoints return the full list.
+  const bookingCount = bookings?.totalTrips ?? bookings?.total ?? bookings?.data?.length;
 
   const enquiries = enquir?.data ?? [];
   const newEnquiryCount = enquiries.filter(isNewEnquiry).length;
@@ -41,7 +44,7 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
   const array = [
-    { heading: "Total Bookings", text: dash(bookings?.data?.length), link: "/bookings" },
+    { heading: "Total Bookings", text: dash(bookingCount), link: "/bookings" },
     { heading: "Total Trips", text: dash(trips?.data?.length), link: "/trip" },
     { heading: "Total Hosts", text: dash(hostCount), link: "/hosts" },
     { heading: "Total Customers", text: dash(customerCount), link: "/user" },
