@@ -19,7 +19,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   generateMetaDescription,
   generateSeoTitle,
@@ -37,6 +37,7 @@ import { useUpdateTripMutation } from "../../Redux/services/TripApis";
 import { useGetAllVendorsQuery } from "../../Redux/services/vanderApi";
 import Loading from "../../smallComponents/Loading";
 import SelecrMuiInput from "../../smallComponents/SelecrMuiInput";
+import { computeSelling, sellingRupees, inr } from "../../utils/pricing";
 import { IOSSwitch } from "../../smallComponents/swtich";
 import Toastify from "../../smallComponents/Toastify";
 import { inputStyle2 } from "../Booking/BookingTable";
@@ -662,6 +663,40 @@ const UpdateTrip = ({ tripData }) => {
     setAddSection(newAddSection);
   };
 
+  // Selected host + its markup% (reused host commissionRate). Match by stored
+  // host id, falling back to the display name. null = not set / missing.
+  const selectedHostObj = (hostArray || []).find(
+    (h) => `${h?._id}` === `${formData.host}` || h?.hostName === formData.hostDisplayName
+  );
+  const hostMarkup =
+    selectedHostObj && `${selectedHostObj.commissionRate ?? ""}` !== ""
+      ? Number(selectedHostObj.commissionRate)
+      : null;
+
+  // Admin enters host B2B price; compute + store customer selling price (excl
+  // GST) into TitlePrice. TitlePrice is only overwritten when a B2B price is
+  // entered, so editing a legacy trip never zeroes its existing price.
+  const handleB2BChange = (sectionIndex, dayIndex, value) => {
+    setAddSection((prev) =>
+      prev.map((s, si) =>
+        si !== sectionIndex
+          ? s
+          : {
+              ...s,
+              array: s.array.map((it, di) => {
+                if (di !== dayIndex) return it;
+                let TitlePrice = it.TitlePrice;
+                if (value !== "" && hostMarkup != null) {
+                  const sell = sellingRupees(value, hostMarkup);
+                  if (sell !== "") TitlePrice = sell;
+                }
+                return { ...it, hostB2BPrice: value, markupRate: hostMarkup, TitlePrice };
+              }),
+            }
+      )
+    );
+  };
+
   const handleSectionTitleChange = (sectionIndex, value) => {
     const newAddSection = [...addSection];
     newAddSection[sectionIndex].sectionTitle = value;
@@ -727,12 +762,27 @@ const UpdateTrip = ({ tripData }) => {
     // Find the host ID from the selected host name
     const selectedHost = hostArray?.find((host) => host?.hostName === hostName);
     const hostId = selectedHost?._id || "";
+    const mk =
+      selectedHost && `${selectedHost.commissionRate ?? ""}` !== ""
+        ? Number(selectedHost.commissionRate)
+        : null;
 
     setFormData((prevFormData) => ({
       ...prevFormData,
       host: hostId, // Store the host ID for backend submission
       hostDisplayName: hostName, // Store the host name for display
     }));
+    // Reapply the new host's markup to any item that already has a B2B price.
+    setAddSection((prev) =>
+      prev.map((s) => ({
+        ...s,
+        array: s.array.map((it) => {
+          if (it.hostB2BPrice === undefined || it.hostB2BPrice === "") return { ...it, markupRate: mk };
+          const sell = mk != null ? sellingRupees(it.hostB2BPrice, mk) : it.TitlePrice;
+          return { ...it, markupRate: mk, TitlePrice: sell === "" ? it.TitlePrice : sell };
+        }),
+      }))
+    );
   };
   // Function to handle changes in addDay and update formData
   const handleDayChange = (index, field, value) => {
@@ -1153,6 +1203,26 @@ const UpdateTrip = ({ tripData }) => {
       console.warn("tripsData not loaded yet, skipping trip validation");
     }
 
+    // Host-markup pricing validation: never save a trip whose B2B prices can't
+    // be turned into a valid selling price.
+    const itemsWithB2B = addSection
+      .flatMap((s) => s.array || [])
+      .filter((it) => it?.hostB2BPrice !== undefined && `${it.hostB2BPrice}` !== "");
+    if (itemsWithB2B.length > 0) {
+      if (!selectedHostObj) {
+        showToast("Select a host before entering Host B2B prices.", "error");
+        return;
+      }
+      if (hostMarkup == null) {
+        showToast("The selected host has no markup %. Set it in the host’s profile before pricing.", "error");
+        return;
+      }
+      if (itemsWithB2B.some((it) => !computeSelling(it.hostB2BPrice, hostMarkup).ok)) {
+        showToast("One or more Host B2B prices are invalid. Enter a non-negative number.", "error");
+        return;
+      }
+    }
+
     try {
       setLoading(true);
 
@@ -1344,8 +1414,8 @@ const UpdateTrip = ({ tripData }) => {
           >
             {array.map(({ plach, name, title, type }, index) => {
               return (
+                <Fragment key={index}>
                 <Grid
-                  key={index}
                   item
                   xs={12}
                   sm={5.8}
@@ -1496,6 +1566,37 @@ const UpdateTrip = ({ tripData }) => {
                     )}
                   </Box>
                 </Grid>
+                {name === "title" && (
+                  <Grid item xs={12} sm={5.8} md={3.8} sx={{ width: "100%", mt: 3 }}>
+                    <Box sx={{ width: "100%" }}>
+                      <Typography sx={{ color: "#737373", textAlign: "left", mb: 1 }}>
+                        Select Host*
+                      </Typography>
+                      <SelecrMuiInput
+                        names={HostNames}
+                        defaultValue={formData?.hostDisplayName || ""}
+                        onCategoryChange={handleHostChange}
+                        multiple={false}
+                      />
+                      {selectedHostObj ? (
+                        hostMarkup != null ? (
+                          <Typography sx={{ fontSize: 12.5, color: "#027A48", mt: 0.5 }}>
+                            Host markup: {hostMarkup}%
+                          </Typography>
+                        ) : (
+                          <Typography sx={{ fontSize: 12.5, color: "#B42318", mt: 0.5 }}>
+                            This host has no markup % set. Add it in the host’s profile before pricing.
+                          </Typography>
+                        )
+                      ) : (
+                        <Typography sx={{ fontSize: 12.5, color: "#737373", mt: 0.5 }}>
+                          Select a host to load its markup %.
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+                )}
+                </Fragment>
               );
             })}
 
@@ -1633,7 +1734,7 @@ const UpdateTrip = ({ tripData }) => {
                       ></Box>
 
                       {/* Day inputs */}
-                      {array.map(({ Title, TitlePrice }, dayIndex) => (
+                      {array.map(({ Title, TitlePrice, hostB2BPrice }, dayIndex) => (
                         <Grid
                           key={dayIndex}
                           container
@@ -1716,24 +1817,76 @@ const UpdateTrip = ({ tripData }) => {
                                   mb: 1,
                                 }}
                               >
-                                Title {dayIndex + 1} Price*
+                                Host B2B Price (₹)*
                               </Typography>
                               <TextField
-                                name={TitlePrice}
                                 size="small"
-                                type="text"
-                                value={TitlePrice}
+                                type="number"
+                                placeholder="e.g. 30000"
+                                value={hostB2BPrice ?? ""}
                                 onChange={(e) =>
-                                  handleInputChangeSection(
+                                  handleB2BChange(
                                     sectionIndex,
                                     dayIndex,
-                                    "TitlePrice",
                                     e.target.value
                                   )
                                 }
                                 sx={inputStyle}
                               />
                             </Box>
+                          </Grid>
+                          <Grid
+                            item
+                            xs={12}
+                            sm={5.8}
+                            md={3.8}
+                            sx={{ width: "100%" }}
+                          >
+                            <Box sx={{ width: "100%" }}>
+                              <Typography
+                                sx={{
+                                  color: "#737373",
+                                  textAlign: "left",
+                                  mb: 1,
+                                }}
+                              >
+                                Selling Price (₹, excl. GST)
+                              </Typography>
+                              <TextField
+                                size="small"
+                                type="text"
+                                value={TitlePrice ?? ""}
+                                InputProps={{ readOnly: true }}
+                                sx={{ ...inputStyle, "& .MuiOutlinedInput-root": { ...(inputStyle["& .MuiOutlinedInput-root"] || {}), background: "#F3F4F6" } }}
+                              />
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} sx={{ width: "100%" }}>
+                            {(() => {
+                              const r = computeSelling(hostB2BPrice, hostMarkup);
+                              if (r.ok) {
+                                return (
+                                  <Typography sx={{ fontSize: 12.5, color: "#027A48" }}>
+                                    B2B {inr(Number(hostB2BPrice))} + {hostMarkup}% markup ({inr(r.markupRupees)}) = {inr(r.sellingRupees)}
+                                  </Typography>
+                                );
+                              }
+                              if (hostB2BPrice && hostMarkup == null) {
+                                return (
+                                  <Typography sx={{ fontSize: 12.5, color: "#B42318" }}>
+                                    Select a host with a markup % to compute the selling price.
+                                  </Typography>
+                                );
+                              }
+                              if (!hostB2BPrice && TitlePrice) {
+                                return (
+                                  <Typography sx={{ fontSize: 12.5, color: "#B54708" }}>
+                                    Legacy price shown. Enter a Host B2B price to recompute from markup.
+                                  </Typography>
+                                );
+                              }
+                              return null;
+                            })()}
                           </Grid>
                         </Grid>
                       ))}
@@ -3049,21 +3202,11 @@ const UpdateTrip = ({ tripData }) => {
 
             <AccordionDetails>
               <Box>
-                <Typography
-                  sx={{
-                    color: "#737373",
-                    textAlign: "left",
-                    mb: 1,
-                  }}
-                >
-                  Select Host
+                <Typography sx={{ color: "#737373", textAlign: "left" }}>
+                  Host selection has moved to <b>Basic Details</b> (right below Title),
+                  where it also drives the B2B → selling-price markup calculation.
+                  {selectedHostObj ? ` Currently selected: ${selectedHostObj.hostName}.` : " No host selected yet."}
                 </Typography>
-                <SelecrMuiInput
-                  names={HostNames}
-                  defaultValue={formData?.hostDisplayName || ""}
-                  onCategoryChange={handleHostChange}
-                  multiple={false}
-                />
               </Box>
             </AccordionDetails>
           </Accordion>
