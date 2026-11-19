@@ -1,46 +1,49 @@
 import { Box, Button, Grid, Typography } from "@mui/material";
 import DashboardTable from "../Components/Dashboard/DashboardTable";
 import { useGetUsersQuery } from "../Redux/services/authApis";
+import { useGetAllHostsQuery } from "../Redux/services/hostsApi";
 import { useNavigate } from "react-router-dom";
 import {
   useGetAllBookingQuery,
   useGetAllEnquriesQuery,
   useGetTripsQuery,
+  useGetPlatformRevenueQuery,
 } from "../Redux/services";
 import DeleteModel from "../smallComponents/DeleteModal";
 
-// Count genuinely-new enquiries. "New" = status not yet replied/closed, i.e.
-// status === "new" (case-insensitive) or no reply recorded. Replying/closing
-// moves it out of this count. Excludes November-is-all-new over-counting.
-const isNewEnquiry = (e) => {
-  const s = (e?.status ?? "").toLowerCase();
-  if (s === "replied" || s === "closed") return false;
-  return s === "new" || (!e?.Reply && !s);
-};
+// Indian-format INR, no decimals (₹1,70,000). Paise handled server-side.
+const inr = (rupees) =>
+  "₹" + Math.round(Number(rupees) || 0).toLocaleString("en-IN");
 
 const Dashboard = () => {
-  // Hosts and customers use role-scoped queries so each count comes from the
-  // server's authoritative `total` (countDocuments) and is NOT capped by the
-  // users endpoint's pagination (default limit 10).
-  const { error, isLoading, data: hostsRes } = useGetUsersQuery({ role: "host" });
+  // Total Hosts = unique host PROFILES in the Hosts module (includeHidden=true
+  // → counts hidden + pending too), not host login identities. pagination
+  // .totalItems is the authoritative full count, unaffected by page size.
+  const { error, isLoading, data: hostsRes } = useGetAllHostsQuery();
+  // Customers = non-admin, non-host accounts; server `total` from the
+  // role-scoped query (not capped by the users endpoint's pagination).
   const { data: customersRes } = useGetUsersQuery({ role: "customer" });
 
   const { data: enquir } = useGetAllEnquriesQuery({ range: "All" });
   const { data: bookings } = useGetAllBookingQuery();
   const { data: trips } = useGetTripsQuery();
+  const { data: revenueRes } = useGetPlatformRevenueQuery();
 
-  const hostCount = hostsRes?.total;
+  const hostCount = hostsRes?.pagination?.totalItems;
   const customerCount = customersRes?.total;
 
   // Bookings endpoint is paginated — `data` is one page, `totalTrips` is the
   // true count. Enquiries + Trips endpoints return the full list.
   const bookingCount = bookings?.totalTrips ?? bookings?.total ?? bookings?.data?.length;
-
   const enquiries = enquir?.data ?? [];
-  const newEnquiryCount = enquiries.filter(isNewEnquiry).length;
+
+  // Platform revenue = earned commission (rupees) computed server-side; ₹0 when
+  // there are no qualifying paid bookings (never a placeholder).
+  const revenueRupees = revenueRes?.data?.revenue;
 
   const loading = isLoading;
   const dash = (v) => (loading ? "…" : error ? "—" : v ?? 0);
+  const dashMoney = (v) => (loading ? "…" : error ? "—" : inr(v ?? 0));
 
   const navigate = useNavigate();
   const array = [
@@ -49,7 +52,7 @@ const Dashboard = () => {
     { heading: "Total Hosts", text: dash(hostCount), link: "/hosts" },
     { heading: "Total Customers", text: dash(customerCount), link: "/user" },
     { heading: "Total Enquiries", text: dash(enquiries.length), link: "/enquire" },
-    { heading: "New Enquiries", text: dash(newEnquiryCount), link: "/enquire" },
+    { heading: "Total Revenue", text: dashMoney(revenueRupees), link: "/analytics" },
   ];
 
   return (
@@ -97,10 +100,13 @@ const Dashboard = () => {
                   sx={{
                     color: "#7DCD85",
                     fontFamily: "Ubuntu",
-                    fontSize: { xs: "28px", md: "34px" },
+                    fontSize: { xs: "22px", md: "30px" },
                     fontWeight: 500,
                     lineHeight: "130%",
                     mt: 1,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
                   {text}
