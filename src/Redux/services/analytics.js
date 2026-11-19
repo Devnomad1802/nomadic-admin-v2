@@ -15,6 +15,11 @@ const AnalyticsApi = api.injectEndpoints({
         };
       },
     }),
+    // Platform earned-commission revenue (Nomadic Townies' own revenue). Server
+    // computes it in paise over eligible paid bookings × per-trip commission.
+    getPlatformRevenue: builder.query({
+      query: () => ({ url: "/analytics/platform-revenue", method: "GET" }),
+    }),
     // ALL bookings for the analytics dashboard (not the paginated 20 the Bookings
     // list uses) — the dashboard must aggregate over the full set.
     getBookingsForAnalytics: builder.query({
@@ -29,4 +34,4 @@ const AnalyticsApi = api.injectEndpoints({
   }),
 });
 
-export const { useGetAnalyticsOverviewQuery, useGetBookingsForAnalyticsQuery } = AnalyticsApi;
+export const { useGetAnalyticsOverviewQuery, useGetPlatformRevenueQuery, useGetBookingsForAnalyticsQuery } = AnalyticsApi;
