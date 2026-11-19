@@ -90,10 +90,12 @@ const array2 = [
     name: "Category",
     link1: "/category",
   },
-  {
-    name: "Vendors",
-    link1: "/vendors",
-  },
+  // Vendors temporarily hidden from the admin sidebar (TASK-005). All vendor
+  // code, routes and data are retained — re-enable by uncommenting this entry.
+  // {
+  //   name: "Vendors",
+  //   link1: "/vendors",
+  // },
   {
     name: "Coupons",
     link1: "/coupons",
