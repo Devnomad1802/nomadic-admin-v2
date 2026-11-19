@@ -27,10 +27,14 @@
 2dp rupees), non-negative/NaN/∞ guarded, GST never folded in. 14 unit checks pass
 (`src/utils/pricing.test.mjs`), incl. the brief's ₹30,000→₹34,500 and ₹28,500→₹32,775.
 
+## Edit flow — DONE
+`UpdateTrip.jsx` now has full parity with Add Trip: host select below Title (restores the
+saved host via `hostDisplayName`), per-item Host B2B + read-only Selling + breakdown,
+host-change recompute, legacy-price safety, and the same publish-time validation. Trips saved
+with `hostB2BPrice` reload it; legacy trips show their existing price with a "enter B2B to
+recompute" hint.
+
 ## Still open (separate, needs approval)
-1. **Edit flow** — `UpdateTrip.jsx` (editing an existing trip) is a separate component and
-   still shows the old single Price field + Host accordion. Same B2B/markup treatment
-   should be applied there for full create/edit/duplicate parity.
 2. **Booking-time snapshot** — persisting `hostB2BPrice/markupRate/markupAmount/
    sellingPriceExclTax` onto the *booking* at checkout (so later host-rate changes can't
    rewrite historical earnings) is a backend booking-flow change, not done here. Selling
