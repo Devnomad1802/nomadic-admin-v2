@@ -19,6 +19,23 @@ import { useGetAllHostsQuery } from "../Redux/services/hostsApi";
 const RUST = "#CD482A";
 const fmt = (d) => (d ? new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
 
+// Date-separator helpers (IST display). dayKey groups by calendar day; dayLabel
+// renders an unambiguous "13 November 2026" (Today/Yesterday for recency).
+const dayKey = (d) => {
+  if (!d) return "";
+  const t = new Date(d);
+  return isNaN(t.getTime()) ? "" : t.toDateString();
+};
+const dayLabel = (d) => {
+  const t = new Date(d);
+  if (isNaN(t.getTime())) return "";
+  const today = new Date();
+  const y = new Date(); y.setDate(today.getDate() - 1);
+  if (t.toDateString() === today.toDateString()) return "Today";
+  if (t.toDateString() === y.toDateString()) return "Yesterday";
+  return t.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+};
+
 // Admin monitoring of on-platform host<->traveller chat. Read-only, host-centric:
 // pick a host to track every conversation they are having with travellers.
 // Contact sharing is blocked at send time (never stored); flagged = moderation history.
@@ -153,11 +170,22 @@ const HostMessages = () => {
                 </Alert>
               )}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
-                {thread.data.messages.map((m, i) => {
+                {thread.data.messages.map((m, i, arr) => {
                   const host = `${m.by}`.toLowerCase() === "host";
                   const hist = m.history || [];
+                  // One separator per new calendar day, compared to the last
+                  // DATED message (messages arrive oldest->newest from the API).
+                  const key = dayKey(m.at);
+                  const prevKey = arr.slice(0, i).map((p) => dayKey(p.at)).filter(Boolean).pop() ?? "";
+                  const showSep = !!key && key !== prevKey;
                   return (
-                    <Box key={i} sx={{ alignSelf: host ? "flex-start" : "flex-end", maxWidth: "82%" }}>
+                    <Box key={i} sx={{ display: "contents" }}>
+                    {showSep && (
+                      <Box sx={{ alignSelf: "center", my: 0.5 }}>
+                        <Chip size="small" label={dayLabel(m.at)} sx={{ background: "#EFEAE1", color: "#6b6257", fontSize: 11, fontWeight: 600, height: 22 }} />
+                      </Box>
+                    )}
+                    <Box sx={{ alignSelf: host ? "flex-start" : "flex-end", maxWidth: "82%" }}>
                       <Box sx={{
                         background: m.deleted ? "#F3F4F6" : host ? "#F1EADD" : "#FDECE6",
                         color: m.deleted ? "#8a8a8a" : "#221C17",
@@ -196,6 +224,7 @@ const HostMessages = () => {
                           ))}
                         </Box>
                       )}
+                    </Box>
                     </Box>
                   );
                 })}

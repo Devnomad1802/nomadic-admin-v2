@@ -31,6 +31,17 @@ const TripApis = api.injectEndpoints({
       invalidatesTags: ["trips"],
     }),
 
+    // Toggle public website visibility (admin). Hides/shows a trip on all
+    // public surfaces without touching its content, status or bookings.
+    updateTripVisibility: builder.mutation({
+      query: ({ tripId, showOnWebsite }) => ({
+        url: "/updateTripVisibility",
+        method: "POST",
+        body: { tripId, showOnWebsite },
+      }),
+      invalidatesTags: ["trips"],
+    }),
+
     getBookingsByTripId: builder.mutation({
       query: ({ tripId }) => ({
         url: "/getBookingsByTripId",
@@ -63,5 +74,6 @@ export const {
   useGetBookingsByTripIdMutation,
   useUpdateTripMutation,
   useUpdateTripStatusMutation,
+  useUpdateTripVisibilityMutation,
   useDeleteTripsMutation,
 } = TripApis;

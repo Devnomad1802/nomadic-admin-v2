@@ -8,8 +8,11 @@ import TableRow from "@mui/material/TableRow";
 import {
   Box,
   Button,
+  Chip,
   IconButton,
   InputAdornment,
+  Snackbar,
+  Alert,
   TextField,
   Tooltip,
   Typography,
@@ -18,11 +21,13 @@ import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArticleIcon from "@mui/icons-material/Article";
 import DownloadIcon from "@mui/icons-material/Download";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { downloadTripDocx } from "../../utils/tripDocx";
 import MenuItem from "@mui/material/MenuItem";
 import BookingModal from "../Booking/BookingModal";
 import { useNavigate } from "react-router-dom";
-import { useGetTripsQuery } from "../../Redux/services/TripApis";
+import { useGetTripsQuery, useUpdateTripVisibilityMutation } from "../../Redux/services/TripApis";
 import DeleteModel from "../../smallComponents/DeleteModal";
 
 export const inputStyle2 = {
@@ -85,9 +90,27 @@ const status = [
 const TripBookings = () => {
   const navigate = useNavigate();
   const { isError, isFetching, isLoading, data } = useGetTripsQuery();
+  const [updateTripVisibility] = useUpdateTripVisibilityMutation();
   const [delModal, setDelModal] = useState(false);
   const [deletripId, setDeleteTripId] = useState("");
   const [tripsData, setTripsData] = useState(data?.data);
+  const [pendingVis, setPendingVis] = useState(null); // tripId currently toggling
+  const [snack, setSnack] = useState({ open: false, msg: "", type: "success" });
+
+  // Toggle public website visibility. Hidden trips drop off every public
+  // surface but keep content, bookings and host links. Re-showing restores them.
+  const toggleVisibility = async (row) => {
+    const next = !(row?.showOnWebsite !== false); // undefined counts as visible
+    setPendingVis(row?._id);
+    try {
+      await updateTripVisibility({ tripId: row?._id, showOnWebsite: next }).unwrap();
+      setSnack({ open: true, msg: `"${row?.title}" ${next ? "is now visible on" : "is now hidden from"} the website`, type: "success" });
+    } catch (err) {
+      setSnack({ open: true, msg: err?.data?.error || "Could not update trip visibility", type: "error" });
+    } finally {
+      setPendingVis(null);
+    }
+  };
 
   console.log("Trip detail ", tripsData);
   useEffect(() => {
@@ -369,6 +392,21 @@ const TripBookings = () => {
                     borderLeft: "none!important",
                     borderTop: "none!important",
                     color: "#667085",
+                    background: "#F3F4F6",
+                    width: "150px",
+                  }}
+                  align="center"
+                >
+                  <Typography sx={{ fontSize: "13px", fontWeight: "bold" }}>
+                    Website
+                  </Typography>
+                  <Box sx={{ height: "40px" }} />
+                </TableCell>
+                <TableCell
+                  sx={{
+                    borderLeft: "none!important",
+                    borderTop: "none!important",
+                    color: "#667085",
                     // height: "100px",
                     background: "#F3F4F6",
                     width: "190px",
@@ -550,6 +588,36 @@ const TripBookings = () => {
                   <TableCell
                     align="center"
                     sx={{
+                      borderLeft: "none!important",
+                      borderTop: "1px solid #E5E7EB!important",
+                      borderBottom: "none !important",
+                      borderRight: "none !important",
+                    }}
+                  >
+                    <Tooltip
+                      placement="top"
+                      title={row?.showOnWebsite !== false ? "Visible on website — click to hide" : "Hidden from website — click to show"}
+                    >
+                      <Chip
+                        size="small"
+                        icon={row?.showOnWebsite !== false ? <VisibilityOutlinedIcon sx={{ fontSize: 16 }} /> : <VisibilityOffOutlinedIcon sx={{ fontSize: 16 }} />}
+                        label={row?.showOnWebsite !== false ? "Visible" : "Hidden"}
+                        onClick={() => toggleVisibility(row)}
+                        disabled={pendingVis === row?._id}
+                        sx={{
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: row?.showOnWebsite !== false ? "#027A48" : "#667085",
+                          background: row?.showOnWebsite !== false ? "#ECFDF3" : "#F2F4F7",
+                          "& .MuiChip-icon": { color: "inherit" },
+                        }}
+                      />
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
                       border: "none !important",
                       borderRadius: "none",
                     }}
@@ -588,6 +656,16 @@ const TripBookings = () => {
           </Table>
         </TableContainer>
       </Box>
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity={snack.type} onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ width: "100%" }}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </>
   );
 };
