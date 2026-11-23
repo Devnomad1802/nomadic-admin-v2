@@ -33,6 +33,7 @@ import {
 } from "../../Redux/services/formDraftsApi";
 import { parseApiError, focusFirstError } from "../../utils/formErrors";
 import FormErrorSummary from "../common/FormErrorSummary";
+import AadhaarCard from "./AadhaarCard";
 
 // Human labels for the fields the backend validates (for the error summary).
 const FIELD_LABELS = {
@@ -2777,6 +2778,10 @@ const AddHost = () => {
               </Grid>
             </AccordionDetails>
           </Accordion>
+
+          {/* Aadhaar Card — private, paired front/back. Separate flow (its own
+              authenticated endpoint); only available once the host has an id. */}
+          <AadhaarCard hostId={isEditMode ? id : null} />
 
           {/* Host Onboarding (self-serve) Section — populated when a host
               completes the onboarding portal; all fields optional/editable. */}
