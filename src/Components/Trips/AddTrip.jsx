@@ -420,6 +420,9 @@ const AddTrip = () => {
     host: "",
     enableBooking: false,
     enableEnquire: false,
+    // Booking workflow: "instant" (classic Book Now) or "approval" (host must
+    // accept a Request to Join before the traveller can pay). Admin-only.
+    bookingMode: "instant",
     Trending: false,
     trendingHeading: "",
     tripOff: 0,
@@ -917,6 +920,7 @@ const AddTrip = () => {
       );
       formDataToSend.append("enableBooking", formData.enableBooking);
       formDataToSend.append("enableEnquire", formData.enableEnquire);
+      formDataToSend.append("bookingMode", formData.bookingMode === "approval" ? "approval" : "instant");
       formDataToSend.append("categories", JSON.stringify(formData.categories));
       formDataToSend.append("vendors", JSON.stringify(formData.vanders));
       formDataToSend.append("host", formData.host);
@@ -2860,6 +2864,28 @@ const AddTrip = () => {
                       onChange={handleBookingToggle}
                     />
                   </FormGroup>
+                </Box>
+                {/* Booking mode — Instant vs Host Approval (admin-only). */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <Typography sx={{ color: "#000", fontWeight: 600 }}>
+                    Booking Workflow
+                  </Typography>
+                  <select
+                    name="bookingMode"
+                    value={formData.bookingMode || "instant"}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, bookingMode: e.target.value === "approval" ? "approval" : "instant" }))
+                    }
+                    style={{ ...inputStyle2, maxWidth: 320 }}
+                  >
+                    <option value="instant">Instant Booking (default)</option>
+                    <option value="approval">Host Approval Required</option>
+                  </select>
+                  <Typography sx={{ color: "#777", fontSize: 12 }}>
+                    {formData.bookingMode === "approval"
+                      ? "Travellers must Request to Join; the host approves before payment."
+                      : "Travellers can Book Now and pay immediately."}
+                  </Typography>
                 </Box>
                 <Box
                   sx={{

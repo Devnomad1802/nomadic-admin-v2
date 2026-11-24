@@ -5,6 +5,7 @@ import Blogs from "./Pages/Blogs";
 import Bookings from "./Pages/Bookings";
 import Dashboard from "./Pages/Dashboard";
 import Enquire from "./Pages/Enquire";
+import JoinRequests from "./Components/JoinRequests/JoinRequests";
 import ResponsiveDrawer from "./Pages/Parent";
 import Reviews from "./Pages/Reviews";
 import TripsTabs from "./Pages/TripsTabs";
@@ -93,6 +94,7 @@ const App = () => {
             <Route path="/host-messages" element={<HostMessages />} />
             <Route path="/user/userTabs" element={<UserTabs />} />
             <Route path="/enquire" element={<Enquire />} />
+            <Route path="/join-requests" element={<JoinRequests />} />
             <Route path="/blogs" element={<Blogs />} />
             <Route path="/blogs/addBlog" element={<AddBlog />} />
             <Route

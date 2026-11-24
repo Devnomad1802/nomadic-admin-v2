@@ -373,6 +373,7 @@ const UpdateTrip = ({ tripData }) => {
         dropOff: tripData?.dropOff || "",
         enableBooking: tripData?.enableBooking || false,
         enableEnquire: tripData?.enableEnquire || false,
+        bookingMode: tripData?.bookingMode === "approval" ? "approval" : "instant",
         Trending: tripData?.Trending || false,
         firstBookingPrice: tripData?.firstBookingPrice || "",
         // Legacy trips: undefined → derive from a positive booking price.
@@ -579,6 +580,7 @@ const UpdateTrip = ({ tripData }) => {
     hostDisplayName: "", // This will store the host name for display
     enableBooking: false,
     enableEnquire: false,
+    bookingMode: "instant",
     Trending: false,
     trendingHeading: "",
     tripOff: "",
@@ -1265,6 +1267,7 @@ const UpdateTrip = ({ tripData }) => {
         JSON.stringify((formData?.highlights || '').split('\n').map((h) => h.trim()).filter(Boolean))
       );
       formDataToSend.append('enableBooking', formData?.enableBooking);
+      formDataToSend.append('bookingMode', formData?.bookingMode === "approval" ? "approval" : "instant");
       formDataToSend.append('enableEnquire', formData?.enableEnquire);
       formDataToSend.append('categories', JSON.stringify(formData?.categories));
       formDataToSend.append('vendors', JSON.stringify(formData?.vanders));
@@ -3365,6 +3368,28 @@ const UpdateTrip = ({ tripData }) => {
                       onChange={handleBookingToggle}
                     />
                   </FormGroup>
+                </Box>
+                {/* Booking mode — Instant vs Host Approval (admin-only). */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <Typography sx={{ color: "#000", fontWeight: 600 }}>
+                    Booking Workflow
+                  </Typography>
+                  <select
+                    name="bookingMode"
+                    value={formData?.bookingMode || "instant"}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, bookingMode: e.target.value === "approval" ? "approval" : "instant" }))
+                    }
+                    style={{ ...inputStyle2, maxWidth: 320 }}
+                  >
+                    <option value="instant">Instant Booking (default)</option>
+                    <option value="approval">Host Approval Required</option>
+                  </select>
+                  <Typography sx={{ color: "#777", fontSize: 12 }}>
+                    {formData?.bookingMode === "approval"
+                      ? "Travellers must Request to Join; the host approves before payment."
+                      : "Travellers can Book Now and pay immediately."}
+                  </Typography>
                 </Box>
                 <Box
                   sx={{

@@ -22,6 +22,7 @@ export const api = createApi({
     "hostApplications",
     "formDrafts",
     "paymentSettings",
+    "joinRequests",
   ],
   baseQuery: async (args, apiCtx, extraOptions) => {
     const raw = fetchBaseQuery({
