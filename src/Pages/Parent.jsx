@@ -51,6 +51,10 @@ const array2 = [
     link1: "/enquire",
   },
   {
+    name: "Join Requests",
+    link1: "/join-requests",
+  },
+  {
     name: "Banner",
     link1: "/banner",
   },
