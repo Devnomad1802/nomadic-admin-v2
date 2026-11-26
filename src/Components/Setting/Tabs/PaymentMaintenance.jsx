@@ -38,6 +38,7 @@ const PaymentMaintenance = () => {
     if (data) {
       setForm({
         paymentMaintenance: data.paymentMaintenance,
+        checkoutDisabled: !!data.checkoutDisabled,
         whatsappNumber: data.whatsappNumber || "",
         noticeHeading: data.noticeHeading || "",
         noticeBody: data.noticeBody || "",
@@ -103,6 +104,15 @@ const PaymentMaintenance = () => {
   };
 
   const on = form.paymentMaintenance;
+  const killed = !!form.checkoutDisabled;
+
+  // Emergency kill-switch: applies immediately in both directions. ON hard-stops
+  // ALL checkout (live + sandbox) regardless of maintenance; OFF lifts it.
+  const onEmergencyToggle = (checked) => {
+    const next = { ...form, checkoutDisabled: checked };
+    setForm(next);
+    doSave(next);
+  };
 
   return (
     <Box sx={{ maxWidth: 760, py: 1 }}>
@@ -128,6 +138,27 @@ const PaymentMaintenance = () => {
           <FormControlLabel
             control={<Switch checked={on} onChange={(e) => onToggle(e.target.checked)} />}
             label={on ? "Maintenance ON" : "Maintenance OFF"}
+            sx={{ m: 0 }}
+          />
+        </Stack>
+      </Box>
+
+      {/* Emergency kill-switch — independent of maintenance */}
+      <Box sx={{ p: 2, borderRadius: 2, border: "1px solid", borderColor: killed ? "#B3261E" : "#eee", background: killed ? "#FEF2F2" : "#fff", mb: 2 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: killed ? "#B3261E" : "#111" }}>
+              {killed ? "EMERGENCY: all checkout is OFF" : "Emergency checkout kill-switch"}
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: "#666" }}>
+              {killed
+                ? "No payment can start — live AND authorized sandbox are blocked, regardless of maintenance."
+                : "Hard-stops ALL checkout instantly (live + sandbox), independent of maintenance mode. Use for incidents."}
+            </Typography>
+          </Box>
+          <FormControlLabel
+            control={<Switch color="error" checked={killed} onChange={(e) => onEmergencyToggle(e.target.checked)} />}
+            label={killed ? "Checkout OFF" : "Normal"}
             sx={{ m: 0 }}
           />
         </Stack>
@@ -163,6 +194,7 @@ const PaymentMaintenance = () => {
       {/* Diagnostics (read-only) */}
       <Typography sx={{ fontWeight: 700, color: "#111", mb: 1 }}>Diagnostics</Typography>
       <Diag label="Payment maintenance" ok={!d.paymentMaintenance} text={d.paymentMaintenance ? "ON" : "OFF"} />
+      <Diag label="Emergency checkout kill-switch" ok={!d.checkoutDisabled} text={d.checkoutDisabled ? "CHECKOUT OFF" : "Normal"} />
       <Diag label="WhatsApp configured" ok={d.whatsappConfigured} />
       <Diag label="Razorpay live keys present" ok={d.liveReady} />
       <Diag label="Isolated test sandbox ready (staging only)" ok={d.testSandboxReady} />

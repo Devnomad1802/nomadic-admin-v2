@@ -216,6 +216,14 @@ const paymentViews = [
   { value: "all", label: "All" },
 ];
 
+// Environment views: real (live) vs Razorpay sandbox. Default hides sandbox so
+// test bookings never mix into the real operational view.
+const envViews = [
+  { value: "live", label: "Live bookings" },
+  { value: "test", label: "Sandbox (test)" },
+];
+const isTestBooking = (b) => b?.mode === "test";
+
 const BookingTable = () => {
   const [page, setPage] = useState(0); // 0-based for TablePagination
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -229,6 +237,9 @@ const BookingTable = () => {
   // Default to genuine confirmed bookings so unpaid/abandoned checkout intents
   // are never shown as bookings. Switch to "attempts"/"all" to investigate.
   const [paymentView, setPaymentView] = useState("confirmed");
+  // Default to LIVE so Razorpay sandbox/test bookings are hidden from the real
+  // operational view; switch to "test" to inspect the sandbox.
+  const [mode, setMode] = useState("live");
 
   // The "Name" box drives the SERVER search (spans ALL bookings by
   // name/email/phone); pagination is server-driven too.
@@ -238,14 +249,15 @@ const BookingTable = () => {
     search: filters.name,
     status: "All",
     paymentView,
+    mode,
   });
   const [bookingArray, setBookingArray] = useState([]);
   const totalBookings = responseData?.totalTrips || 0;
 
-  // Reset to the first page whenever the server search term or payment view changes.
+  // Reset to the first page whenever the server search term or a view changes.
   useEffect(() => {
     setPage(0);
-  }, [filters.name, rowsPerPage, paymentView]);
+  }, [filters.name, rowsPerPage, paymentView, mode]);
 
   // Email / phone / trip-name refine the CURRENT page client-side.
   const filteredBookings = (bookingArray || []).filter((booking) => {
@@ -621,6 +633,26 @@ const BookingTable = () => {
                       ))}
                     </TextField>
                   </Box>
+                  <Box sx={{ mt: 1 }}>
+                    <TextField
+                      sx={inputStyle2}
+                      id="env-view-select"
+                      select
+                      value={mode}
+                      onChange={(e) => setMode(e.target.value)}
+                      size="small"
+                    >
+                      {envViews.map((option) => (
+                        <MenuItem
+                          key={option.value}
+                          value={option.value}
+                          sx={{ width: "100%", textAlign: "left", color: "#000", fontSize: "13px" }}
+                        >
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Box>
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -900,7 +932,18 @@ const BookingTable = () => {
                         borderRadius: index === 4 ? "0px 0px 30px 0px" : "",
                       }}
                     >
-                      {/* {row.bitcoinSV1} */}
+                      {isTestBooking(row) && (
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "inline-block", mb: 0.5, px: 0.8, py: 0.2,
+                            fontSize: 10, fontWeight: 800, letterSpacing: 0.5,
+                            color: "#fff", background: "#B3261E", borderRadius: "4px",
+                          }}
+                        >
+                          SANDBOX / TEST
+                        </Box>
+                      )}
                       <Typography
                         sx={{
                           color: statusColorOf(row),
