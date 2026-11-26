@@ -35,7 +35,7 @@ import { useAddTripMutation } from "../../Redux/services/TripApis";
 import { useGetAllVendorsQuery } from "../../Redux/services/vanderApi";
 import Loading from "../../smallComponents/Loading";
 import SelecrMuiInput from "../../smallComponents/SelecrMuiInput";
-import { computeSelling, sellingRupees, inr } from "../../utils/pricing";
+import { inr } from "../../utils/pricing";
 import { IOSSwitch } from "../../smallComponents/swtich";
 import Toastify from "../../smallComponents/Toastify";
 import { inputStyle2 } from "../Booking/BookingTable";
@@ -294,6 +294,9 @@ const AddTrip = () => {
   // Validation and accordion state
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
+  // Owner guard: when ON, block saving a trip that has any booking option priced
+  // below its host B2B cost. Default OFF = warn only (admin can still save).
+  const [belowCostGuard, setBelowCostGuard] = useState(false);
 
   const [alertState, setAlertState] = useState({
     open: false,
@@ -460,26 +463,9 @@ const AddTrip = () => {
     },
   ]);
 
-  console.log("addSection...", addSection);
-  useEffect(() => {
-    setAddSection((prevSections) => {
-      return prevSections.map((section, index) => {
-        if (index === 0) {
-          return {
-            ...section,
-            // Don't clobber a selling price that was computed from a Host B2B
-            // price + markup; only seed items that have no B2B price entered.
-            array: section.array.map((item) =>
-              item?.hostB2BPrice !== undefined && `${item.hostB2BPrice}` !== ""
-                ? item
-                : { ...item, TitlePrice: formData.price }
-            ),
-          };
-        }
-        return section;
-      });
-    });
-  }, [formData.price]);
+  // (Removed) The Selling Price (TitlePrice) is admin-entered and authoritative;
+  // it is no longer auto-seeded from the top-level formData.price, which would
+  // clobber a manually-entered per-option price.
 
   const handleAddSectionItem = (sectionIndex) => {
     const newAddSection = [...addSection];
@@ -530,10 +516,10 @@ const AddTrip = () => {
       ? Number(selectedHostObj.commissionRate)
       : null;
 
-  // Admin enters the host B2B price; we compute + store the customer selling
-  // price (excl GST) into TitlePrice (the field downstream booking math uses).
-  // TitlePrice is only overwritten when a B2B price is actually entered, so
-  // editing a legacy trip never zeroes an existing price.
+  // Admin enters the host B2B price. This is cost/reference only — it records
+  // hostB2BPrice (and markupRate for the informational margin readout) but NEVER
+  // overwrites TitlePrice: the Selling Price is entered manually by the admin and
+  // is authoritative (see brief "Restore Manual Selling Price").
   const handleB2BChange = (sectionIndex, dayIndex, value) => {
     setAddSection((prev) =>
       prev.map((s, si) =>
@@ -541,15 +527,36 @@ const AddTrip = () => {
           ? s
           : {
               ...s,
-              array: s.array.map((it, di) => {
-                if (di !== dayIndex) return it;
-                let TitlePrice = it.TitlePrice;
-                if (value !== "" && hostMarkup != null) {
-                  const sell = sellingRupees(value, hostMarkup);
-                  if (sell !== "") TitlePrice = sell;
-                }
-                return { ...it, hostB2BPrice: value, markupRate: hostMarkup, TitlePrice };
-              }),
+              array: s.array.map((it, di) =>
+                di !== dayIndex ? it : { ...it, hostB2BPrice: value, markupRate: hostMarkup }
+              ),
+            }
+      )
+    );
+  };
+
+  // Manual Selling Price (excl GST). Authoritative — sanitized to a finite,
+  // non-negative value with ≤2 decimal places (paise). Blank stays blank.
+  const handleSellingPriceChange = (sectionIndex, dayIndex, value) => {
+    let v = String(value);
+    if (v !== "") {
+      // keep digits + a single dot, clamp to 2 dp; drop sign/other chars
+      v = v.replace(/[^0-9.]/g, "");
+      const firstDot = v.indexOf(".");
+      if (firstDot !== -1) {
+        v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+        v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1, firstDot + 3);
+      }
+    }
+    setAddSection((prev) =>
+      prev.map((s, si) =>
+        si !== sectionIndex
+          ? s
+          : {
+              ...s,
+              array: s.array.map((it, di) =>
+                di !== dayIndex ? it : { ...it, TitlePrice: v }
+              ),
             }
       )
     );
@@ -625,14 +632,12 @@ const AddTrip = () => {
       ...prevFormData,
       host: hostIds, // This will now store only the IDs
     }));
+    // Record the new host's markup for the informational margin readout only —
+    // never recompute/overwrite the manually-entered Selling Price (TitlePrice).
     setAddSection((prev) =>
       prev.map((s) => ({
         ...s,
-        array: s.array.map((it) => {
-          if (it.hostB2BPrice === undefined || it.hostB2BPrice === "") return { ...it, markupRate: mk };
-          const sell = mk != null ? sellingRupees(it.hostB2BPrice, mk) : it.TitlePrice;
-          return { ...it, markupRate: mk, TitlePrice: sell === "" ? it.TitlePrice : sell };
-        }),
+        array: s.array.map((it) => ({ ...it, markupRate: mk })),
       }))
     );
   };
@@ -860,24 +865,48 @@ const AddTrip = () => {
       }
     }
 
-    // Host-markup pricing validation: never publish a trip whose B2B prices
-    // can't be turned into a valid selling price.
-    const itemsWithB2B = addSection
-      .flatMap((s) => s.array || [])
-      .filter((it) => it?.hostB2BPrice !== undefined && `${it.hostB2BPrice}` !== "");
-    if (itemsWithB2B.length > 0) {
-      if (!selectedHostObj) {
-        showToast("Select a host before entering Host B2B prices.", "error");
+    // Manual pricing validation. The Selling Price is admin-entered and
+    // authoritative; we only reject malformed money and (optionally) block
+    // below-cost publication when the owner guard is enabled. A valid money
+    // value is a non-negative number with at most 2 decimal places.
+    {
+      const money2dp = (v) => /^\d+(\.\d{1,2})?$/.test(`${v}`);
+      const allItems = addSection.flatMap((s) => s.array || []);
+      // Selling Price: blank allowed (draft); if present it must be > 0 / 2dp.
+      const badSell = allItems.some((it) => {
+        const v = it?.TitlePrice;
+        if (v === "" || v == null) return false;
+        return !(Number(v) > 0 && money2dp(v));
+      });
+      if (badSell) {
+        showToast("Enter a valid Selling Price (a positive number, up to 2 decimals) for each booking option.", "error");
         return;
       }
-      if (hostMarkup == null) {
-        showToast("The selected host has no markup %. Set it in the host’s profile before pricing.", "error");
+      // Host B2B cost: blank allowed; if present it must be >= 0 / 2dp.
+      const badB2B = allItems.some((it) => {
+        const v = it?.hostB2BPrice;
+        if (v === "" || v == null) return false;
+        return !(isFinite(Number(v)) && Number(v) >= 0 && money2dp(v));
+      });
+      if (badB2B) {
+        showToast("Host B2B price must be a non-negative number (up to 2 decimals).", "error");
         return;
       }
-      const bad = itemsWithB2B.some((it) => !computeSelling(it.hostB2BPrice, hostMarkup).ok);
-      if (bad) {
-        showToast("One or more Host B2B prices are invalid. Enter a non-negative number.", "error");
-        return;
+      // Owner guard (opt-in): block below-cost options from being published.
+      if (belowCostGuard) {
+        const belowCost = allItems.some((it) => {
+          const b2b = Number(it?.hostB2BPrice);
+          const sell = Number(it?.TitlePrice);
+          return (
+            it?.hostB2BPrice !== "" && it?.hostB2BPrice != null &&
+            it?.TitlePrice !== "" && it?.TitlePrice != null &&
+            isFinite(b2b) && b2b > 0 && isFinite(sell) && sell < b2b
+          );
+        });
+        if (belowCost) {
+          showToast("Below-cost guard is ON: one or more options are priced below host B2B cost. Raise the price or turn off the guard to publish.", "error");
+          return;
+        }
       }
     }
 
@@ -1224,6 +1253,23 @@ const AddTrip = () => {
             </AccordionSummary>
             <AccordionDetails>
               <Box>
+                {/* Owner guard: block publishing any option priced below host
+                    B2B cost. Default OFF — below-cost prices only warn. */}
+                <FormControlLabel
+                  sx={{ mb: 1 }}
+                  control={
+                    <IOSSwitch
+                      sx={{ m: 1 }}
+                      checked={belowCostGuard}
+                      onChange={(e) => setBelowCostGuard(e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: 13.5, color: "#393938" }}>
+                      Block publishing options priced below host B2B cost
+                    </Typography>
+                  }
+                />
                 {addSection.map(({ section, array }, sectionIndex) => (
                   <Box
                     key={sectionIndex}
@@ -1440,34 +1486,43 @@ const AddTrip = () => {
                                 name={`selling-price-${sectionIndex}-${dayIndex}`}
                                 size="small"
                                 type="text"
+                                inputMode="decimal"
+                                placeholder="e.g. 20499"
                                 value={TitlePrice ?? ""}
-                                InputProps={{ readOnly: true }}
-                                sx={{ ...inputStyle, "& .MuiOutlinedInput-root": { ...(inputStyle["& .MuiOutlinedInput-root"] || {}), background: "#F3F4F6" } }}
+                                onChange={(e) => handleSellingPriceChange(sectionIndex, dayIndex, e.target.value)}
+                                sx={inputStyle}
                               />
                             </Box>
                           </Grid>
-                          {/* B2B + markup breakdown */}
+                          {/* Informational gross margin / effective markup (never
+                              overwrites the manually-entered Selling Price). */}
                           <Grid item xs={12} sx={{ width: "100%" }}>
                             {(() => {
-                              const r = computeSelling(hostB2BPrice, hostMarkup);
-                              if (r.ok) {
+                              const b2b = Number(hostB2BPrice);
+                              const sell = Number(TitlePrice);
+                              const hasB2B = hostB2BPrice !== "" && hostB2BPrice != null && isFinite(b2b) && b2b > 0;
+                              const hasSell = TitlePrice !== "" && TitlePrice != null && isFinite(sell);
+                              if (hasSell && hasB2B) {
+                                const margin = sell - b2b;
+                                const eff = (margin / b2b) * 100;
+                                if (sell < b2b) {
+                                  return (
+                                    <Typography sx={{ fontSize: 12.5, color: "#B42318" }}>
+                                      ⚠ Selling {inr(sell)} is below host B2B cost {inr(b2b)} (margin −{inr(b2b - sell)}).
+                                      You can still save{belowCostGuard ? ", but the below-cost guard will block publishing." : "."}
+                                    </Typography>
+                                  );
+                                }
                                 return (
                                   <Typography sx={{ fontSize: 12.5, color: "#027A48" }}>
-                                    B2B {inr(Number(hostB2BPrice))} + {hostMarkup}% markup ({inr(r.markupRupees)}) = {inr(r.sellingRupees)}
+                                    Gross margin = {inr(margin)} · effective markup = {eff.toFixed(1)}%
                                   </Typography>
                                 );
                               }
-                              if (hostB2BPrice && hostMarkup == null) {
+                              if (hasSell && !hasB2B) {
                                 return (
-                                  <Typography sx={{ fontSize: 12.5, color: "#B42318" }}>
-                                    Select a host with a markup % to compute the selling price.
-                                  </Typography>
-                                );
-                              }
-                              if (!hostB2BPrice && TitlePrice) {
-                                return (
-                                  <Typography sx={{ fontSize: 12.5, color: "#B54708" }}>
-                                    Legacy price shown. Enter a Host B2B price to recompute from markup.
+                                  <Typography sx={{ fontSize: 12.5, color: "#737373" }}>
+                                    Margin unavailable — enter a Host B2B cost to see gross margin.
                                   </Typography>
                                 );
                               }
