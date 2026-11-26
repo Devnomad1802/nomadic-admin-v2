@@ -185,24 +185,6 @@ const type = [
     label: "Customized",
   },
 ];
-const status = [
-  {
-    value: "All",
-    label: "All",
-  },
-  {
-    value: "Upcoming",
-    label: "Upcoming",
-  },
-  {
-    value: "Completed",
-    label: "Completed",
-  },
-  {
-    value: "Cancelled",
-    label: "Cancelled",
-  },
-];
 // Contact fallbacks: top-level field → lead traveller → "—" (so bookings
 // without a stored userName/email still show who booked).
 const leadOf = (b) =>
@@ -210,6 +192,29 @@ const leadOf = (b) =>
 const leadNameOf = (b) => b?.userName || leadOf(b)?.name || "—";
 const leadEmailOf = (b) => b?.email || leadOf(b)?.email || "—";
 const leadPhoneOf = (b) => b?.phone || leadOf(b)?.phone || "—";
+
+// Real booking status derived from the payment lifecycle — NOT a hard-coded
+// label. "created" means a checkout order was opened but never paid (e.g. the
+// Razorpay modal was dismissed); such rows are not confirmed bookings.
+const PAY_LABEL = {
+  fullPayment: "Confirmed",
+  firstPayment: "Partially paid",
+  created: "Unpaid / Abandoned",
+};
+const PAY_COLOR = {
+  fullPayment: "#065F46",
+  firstPayment: "#9A6A12",
+  created: "#9A3412",
+};
+const statusLabelOf = (b) => PAY_LABEL[b?.paymentStatus] || "Unpaid / Abandoned";
+const statusColorOf = (b) => PAY_COLOR[b?.paymentStatus] || "#9A3412";
+
+// Payment-state views for the list (default shows only genuine bookings).
+const paymentViews = [
+  { value: "confirmed", label: "Confirmed bookings" },
+  { value: "attempts", label: "Payment attempts (unpaid)" },
+  { value: "all", label: "All" },
+];
 
 const BookingTable = () => {
   const [page, setPage] = useState(0); // 0-based for TablePagination
@@ -221,6 +226,9 @@ const BookingTable = () => {
     phone: "",
     tripName: "",
   });
+  // Default to genuine confirmed bookings so unpaid/abandoned checkout intents
+  // are never shown as bookings. Switch to "attempts"/"all" to investigate.
+  const [paymentView, setPaymentView] = useState("confirmed");
 
   // The "Name" box drives the SERVER search (spans ALL bookings by
   // name/email/phone); pagination is server-driven too.
@@ -229,14 +237,15 @@ const BookingTable = () => {
     limit: rowsPerPage,
     search: filters.name,
     status: "All",
+    paymentView,
   });
   const [bookingArray, setBookingArray] = useState([]);
   const totalBookings = responseData?.totalTrips || 0;
 
-  // Reset to the first page whenever the server search term changes.
+  // Reset to the first page whenever the server search term or payment view changes.
   useEffect(() => {
     setPage(0);
-  }, [filters.name, rowsPerPage]);
+  }, [filters.name, rowsPerPage, paymentView]);
 
   // Email / phone / trip-name refine the CURRENT page client-side.
   const filteredBookings = (bookingArray || []).filter((booking) => {
@@ -590,13 +599,13 @@ const BookingTable = () => {
                   <Box sx={{ height: "48px", pt: 0.8 }}>
                     <TextField
                       sx={inputStyle2}
-                      id="outlined-select-currency"
+                      id="payment-view-select"
                       select
-                      defaultValue="All"
+                      value={paymentView}
+                      onChange={(e) => setPaymentView(e.target.value)}
                       size="small"
-                      helperText="Please select your currency"
                     >
-                      {status.map((option) => (
+                      {paymentViews.map((option) => (
                         <MenuItem
                           key={option.value}
                           value={option.value}
@@ -894,13 +903,12 @@ const BookingTable = () => {
                       {/* {row.bitcoinSV1} */}
                       <Typography
                         sx={{
-                          color: "#6D7280",
+                          color: statusColorOf(row),
                           fontSize: "13px",
-                          fontWeight: "300",
+                          fontWeight: "600",
                         }}
                       >
-                        {/* {row.bookingdate} */}
-                        Completed
+                        {statusLabelOf(row)}
                       </Typography>
                       {["firstPayment", "fullPayment"].includes(row?.paymentStatus) && (
                         <button
