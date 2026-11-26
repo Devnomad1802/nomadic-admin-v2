@@ -7,7 +7,7 @@ const BookingApi = api.injectEndpoints({
     getAllBooking: builder.query({
       // Server-driven pagination + search + status. POST carries status in the
       // body; page/limit/search go in the query string.
-      query: ({ page = 1, limit = 20, search = "", status = "All" } = {}) => {
+      query: ({ page = 1, limit = 20, search = "", status = "All", paymentView = "confirmed" } = {}) => {
         const p = new URLSearchParams();
         p.set("page", page);
         p.set("limit", limit);
@@ -15,7 +15,10 @@ const BookingApi = api.injectEndpoints({
         return {
           url: `/getAllBookings?${p.toString()}`,
           method: "POST",
-          body: { status },
+          // paymentView: "confirmed" (default) shows only genuinely paid
+          // bookings; "attempts" shows unpaid/abandoned checkout intents; "all"
+          // shows everything. Keeps unpaid attempts out of the confirmed view.
+          body: { status, paymentView },
         };
       },
     }),
