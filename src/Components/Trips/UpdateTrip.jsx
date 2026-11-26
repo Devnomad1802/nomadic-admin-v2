@@ -1690,6 +1690,23 @@ const UpdateTrip = ({ tripData }) => {
             </AccordionSummary>
             <AccordionDetails>
               <Box>
+                {/* Owner guard: block publishing any option priced below host
+                    B2B cost. Default OFF — below-cost prices only warn. */}
+                <FormControlLabel
+                  sx={{ mb: 1 }}
+                  control={
+                    <IOSSwitch
+                      sx={{ m: 1 }}
+                      checked={belowCostGuard}
+                      onChange={(e) => setBelowCostGuard(e.target.checked)}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontSize: 13.5, color: "#393938" }}>
+                      Block publishing options priced below host B2B cost
+                    </Typography>
+                  }
+                />
                 {addSection.map(({ section, array }, sectionIndex) => (
                   <Box
                     key={sectionIndex}
