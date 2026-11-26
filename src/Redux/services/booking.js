@@ -7,7 +7,7 @@ const BookingApi = api.injectEndpoints({
     getAllBooking: builder.query({
       // Server-driven pagination + search + status. POST carries status in the
       // body; page/limit/search go in the query string.
-      query: ({ page = 1, limit = 20, search = "", status = "All", paymentView = "confirmed" } = {}) => {
+      query: ({ page = 1, limit = 20, search = "", status = "All", paymentView = "confirmed", mode = "live" } = {}) => {
         const p = new URLSearchParams();
         p.set("page", page);
         p.set("limit", limit);
@@ -17,8 +17,9 @@ const BookingApi = api.injectEndpoints({
           method: "POST",
           // paymentView: "confirmed" (default) shows only genuinely paid
           // bookings; "attempts" shows unpaid/abandoned checkout intents; "all"
-          // shows everything. Keeps unpaid attempts out of the confirmed view.
-          body: { status, paymentView },
+          // shows everything. mode: "live" (default) hides Razorpay sandbox/test
+          // bookings; "test" shows only them; "all" shows both.
+          body: { status, paymentView, mode },
         };
       },
     }),
