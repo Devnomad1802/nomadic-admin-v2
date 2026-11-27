@@ -49,9 +49,14 @@ const parseBatches = (raw) => {
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
+// The admin theme sets palette.text.primary = #fff (dark-first); on these white
+// form surfaces that makes labels/values invisible. Pin readable colors here.
 const field = {
-  "& .MuiOutlinedInput-root": { height: 40, borderRadius: "6px", fontSize: 13, background: "#fff" },
+  "& .MuiOutlinedInput-root": { height: 40, borderRadius: "6px", fontSize: 13, background: "#fff", color: "#111" },
+  "& .MuiInputLabel-root": { color: "#667085" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#58C5DA" },
 };
+const INK = "#1D2939"; // readable default for all modal text (overrides the white theme default)
 
 export default function ImportPaymentModal({ open, onClose }) {
   const [ref, setRef] = useState("");
@@ -165,8 +170,8 @@ export default function ImportPaymentModal({ open, onClose }) {
     Object.keys(quantities()).length > 0 && !confirming;
 
   return (
-    <Dialog open={!!open} onClose={close} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, fontSize: 18 }}>
+    <Dialog open={!!open} onClose={close} maxWidth="md" fullWidth PaperProps={{ sx: { color: INK } }}>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: 18, color: INK }}>
         Import existing payment
         <Typography sx={{ fontSize: 12, color: "#667085", mt: 0.5 }}>
           Attach an already-captured Razorpay payment to a booking. No new charge is created.
@@ -221,7 +226,7 @@ export default function ImportPaymentModal({ open, onClose }) {
                 <Typography sx={{ fontWeight: 700, fontSize: 13, mb: 0.5 }}>2 · Customer</Typography>
                 {customer ? (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                    <Chip label={`${customer.name || "—"} · ${customer.email || customer.phone || ""}`} onDelete={() => setCustomer(null)} />
+                    <Chip label={`${customer.name || "—"} · ${customer.email || customer.phone || ""}`} onDelete={() => setCustomer(null)} sx={{ color: INK, "& .MuiChip-label": { color: INK } }} />
                   </Box>
                 ) : (
                   <Box sx={{ mb: 2 }}>
