@@ -3,6 +3,7 @@ export * from "./Enquire";
 export * from "./TripApis";
 export * from "./BlogApis";
 export * from "./booking";
+export * from "./importPaymentApi";
 export * from "./categoryApi";
 export * from "./BannerApis";
 export * from "./reviewApi";
