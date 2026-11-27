@@ -29,6 +29,7 @@ import {
   useGetUsersQuery,
   useGetTripsQuery,
 } from "../../Redux/services";
+import AddCustomerModal from "../User/AddCustomerModal";
 
 const asArray = (d) => (Array.isArray(d) ? d : d?.data || d?.trips || d?.users || []);
 const parseJson = (raw) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -55,6 +56,7 @@ export default function CreatePaymentLinkModal({ open, onClose }) {
   const [link, setLink] = useState(null); // server response data
   const [status, setStatus] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [err, setErr] = useState("");
 
   const [createLink, { isLoading: creating }] = useCreateAssistedLinkMutation();
@@ -143,6 +145,7 @@ export default function CreatePaymentLinkModal({ open, onClose }) {
 
   return (
     <Dialog open={!!open} onClose={close} maxWidth="md" fullWidth PaperProps={{ sx: { color: INK } }}>
+      <AddCustomerModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={(c) => { if (c) setCustomer(c); setAddOpen(false); }} />
       <DialogTitle sx={{ fontWeight: 700, fontSize: 18, color: INK }}>
         Create payment link
         <Typography sx={{ fontSize: 12, color: "#667085", mt: 0.5 }}>
@@ -162,9 +165,12 @@ export default function CreatePaymentLinkModal({ open, onClose }) {
               </Box>
             ) : (
               <Box sx={{ mb: 2 }}>
-                <TextField size="small" fullWidth placeholder="Search customer by name / email / phone (2+ chars)"
-                  value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} sx={field}
-                  InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 18 }} /></InputAdornment>) }} />
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                  <TextField size="small" fullWidth placeholder="Search customer by name / email / phone (2+ chars)"
+                    value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} sx={field}
+                    InputProps={{ startAdornment: (<InputAdornment position="start"><SearchRoundedIcon sx={{ fontSize: 18 }} /></InputAdornment>) }} />
+                  <Button size="small" variant="outlined" onClick={() => setAddOpen(true)} sx={{ textTransform: "none", whiteSpace: "nowrap" }}>New customer</Button>
+                </Box>
                 {usersFetching && <Typography sx={{ fontSize: 12, color: "#667085", mt: 0.5 }}>Searching…</Typography>}
                 {customers.slice(0, 6).map((u) => (
                   <Box key={u._id} onClick={() => setCustomer(u)}

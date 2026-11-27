@@ -47,6 +47,12 @@ const authApis = api.injectEndpoints({
       providesTags: ["user"],
     }),
 
+    // Admin "Add Customer": minimal pending-activation profile (no password).
+    createCustomer: builder.mutation({
+      query: (body) => ({ url: "/auth/admin/customers", method: "POST", body }),
+      invalidatesTags: ["user"],
+    }),
+
     sendMailConfirmation: builder.mutation({
       query: () => ({
         url: "/auth/sendMail",
@@ -97,4 +103,5 @@ export const {
   usePrefetch,
   useChangePassMutation,
   useSendSmsCodeMutation,
+  useCreateCustomerMutation,
 } = authApis;
