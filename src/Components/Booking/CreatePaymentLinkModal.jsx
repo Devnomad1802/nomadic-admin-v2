@@ -33,7 +33,14 @@ import {
 const asArray = (d) => (Array.isArray(d) ? d : d?.data || d?.trips || d?.users || []);
 const parseJson = (raw) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-const field = { "& .MuiOutlinedInput-root": { height: 40, borderRadius: "6px", fontSize: 13, background: "#fff" } };
+// The admin theme sets palette.text.primary = #fff (dark-first); on these white
+// form surfaces that makes labels/values invisible. Pin readable colors here.
+const field = {
+  "& .MuiOutlinedInput-root": { height: 40, borderRadius: "6px", fontSize: 13, background: "#fff", color: "#111" },
+  "& .MuiInputLabel-root": { color: "#667085" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#58C5DA" },
+};
+const INK = "#1D2939"; // readable default for all modal text (overrides the white theme default)
 
 const SUPPORT = "support@nomadictownies.com";
 
@@ -135,8 +142,8 @@ export default function CreatePaymentLinkModal({ open, onClose }) {
   const paidAndDone = status?.bookingPaymentStatus && status.bookingPaymentStatus !== "created";
 
   return (
-    <Dialog open={!!open} onClose={close} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, fontSize: 18 }}>
+    <Dialog open={!!open} onClose={close} maxWidth="md" fullWidth PaperProps={{ sx: { color: INK } }}>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: 18, color: INK }}>
         Create payment link
         <Typography sx={{ fontSize: 12, color: "#667085", mt: 0.5 }}>
           Server-priced assisted booking. The customer pays the link; the booking confirms only after a verified payment.
@@ -151,7 +158,7 @@ export default function CreatePaymentLinkModal({ open, onClose }) {
             <Typography sx={{ fontWeight: 700, fontSize: 13, mb: 0.5 }}>1 · Customer</Typography>
             {customer ? (
               <Box sx={{ mb: 2 }}>
-                <Chip label={`${customer.name || "—"} · ${customer.email || customer.phone || ""}`} onDelete={() => setCustomer(null)} />
+                <Chip label={`${customer.name || "—"} · ${customer.email || customer.phone || ""}`} onDelete={() => setCustomer(null)} sx={{ color: INK, "& .MuiChip-label": { color: INK } }} />
               </Box>
             ) : (
               <Box sx={{ mb: 2 }}>
