@@ -9,6 +9,9 @@ import TableRow from "@mui/material/TableRow";
 import { Box, InputAdornment, TextField, Typography, TablePagination } from "@mui/material";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import BookingModal from "./BookingModal";
+import ImportPaymentModal from "./ImportPaymentModal";
+import Button from "@mui/material/Button";
+import AddCardRoundedIcon from "@mui/icons-material/AddCardRounded";
 
 import MenuItem from "@mui/material/MenuItem";
 import { useGetAllBookingQuery } from "../../Redux/services";
@@ -343,6 +346,9 @@ const BookingTable = () => {
     setOpens(!opens);
   };
 
+  // Import Existing Payment (admin) modal.
+  const [importOpen, setImportOpen] = useState(false);
+
   return (
     <>
       <BookingModal
@@ -351,6 +357,17 @@ const BookingTable = () => {
         toggelModel={toggelModel}
         booking={booking}
       />
+      <ImportPaymentModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddCardRoundedIcon />}
+          onClick={() => setImportOpen(true)}
+          sx={{ textTransform: "none", fontSize: 13 }}
+        >
+          Import payment
+        </Button>
+      </Box>
       <Box
         sx={{
           overflowX: "auto",
