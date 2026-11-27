@@ -10,8 +10,10 @@ import { Box, InputAdornment, TextField, Typography, TablePagination } from "@mu
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import BookingModal from "./BookingModal";
 import ImportPaymentModal from "./ImportPaymentModal";
+import CreatePaymentLinkModal from "./CreatePaymentLinkModal";
 import Button from "@mui/material/Button";
 import AddCardRoundedIcon from "@mui/icons-material/AddCardRounded";
+import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 
 import MenuItem from "@mui/material/MenuItem";
 import { useGetAllBookingQuery } from "../../Redux/services";
@@ -348,6 +350,8 @@ const BookingTable = () => {
 
   // Import Existing Payment (admin) modal.
   const [importOpen, setImportOpen] = useState(false);
+  // Create Payment Link (admin) modal.
+  const [linkOpen, setLinkOpen] = useState(false);
 
   return (
     <>
@@ -358,7 +362,16 @@ const BookingTable = () => {
         booking={booking}
       />
       <ImportPaymentModal open={importOpen} onClose={() => setImportOpen(false)} />
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+      <CreatePaymentLinkModal open={linkOpen} onClose={() => setLinkOpen(false)} />
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 1 }}>
+        <Button
+          variant="outlined"
+          startIcon={<LinkRoundedIcon />}
+          onClick={() => setLinkOpen(true)}
+          sx={{ textTransform: "none", fontSize: 13 }}
+        >
+          Create payment link
+        </Button>
         <Button
           variant="contained"
           startIcon={<AddCardRoundedIcon />}
