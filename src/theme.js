@@ -105,6 +105,30 @@ let theme1 = createTheme({
         root: { color: "#111111" },
       },
     },
+    // Same invisible-text cause for form field LABELS: MuiFormLabel (which
+    // MuiInputLabel extends) inherits palette.text.secondary (white 60%) and
+    // vanished on white forms. Covers TextField/Select/Radio labels app-wide.
+    // Focused/error keep their semantic colors. styleOverrides < sx.
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          color: "#667085",
+          "&.Mui-focused": { color: "#58C5DA" },
+          "&.Mui-error": { color: "#d32f2f" },
+        },
+      },
+    },
+    // Same cause for Chips: the default (grey) chip's label inherited white.
+    // Scoped to color="default" ONLY, so coloured status chips
+    // (success/warning/error) keep their own contrast text.
+    MuiChip: {
+      styleOverrides: {
+        root: ({ ownerState }) =>
+          ownerState?.color === "default" || !ownerState?.color
+            ? { color: "#111111" }
+            : {},
+      },
+    },
     MuiButton: {
       variants: [
         {
